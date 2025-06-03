@@ -1,0 +1,184 @@
+/* ========== Base dashboard styles ==================================== */
+body {
+    margin: 0;
+    font-family: system-ui;
+    background: #111;
+    color: #fff
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .6rem 1rem;
+    background: #222
+}
+
+header button {
+    margin-left: .4rem;
+    padding: .3rem .6rem;
+    cursor: pointer
+}
+
+#layout {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem
+}
+
+#left {
+    flex: 1
+}
+
+#right {
+    width: 260px
+}
+
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem
+}
+
+.card {
+    padding: .3rem .5rem;
+    background: #333;
+    border-radius: .5rem;
+    cursor: grab;
+    font-size: .85rem;
+    text-align: center
+}
+
+.group {
+    background: #1d1d1d;
+    border: 2px dashed #555;
+    border-radius: .6rem;
+    min-width: 140px;
+    min-height: 120px;
+    padding: .5rem;
+    position: relative
+}
+
+.group .title {
+    font-weight: bold;
+    margin-bottom: .4rem
+}
+
+.group .counts {
+    font-size: .85rem
+}
+
+.pane {
+    background: #1d1d1d;
+    margin-top: 1rem;
+    padding: .5rem;
+    max-height: 260px;
+    overflow: auto
+}
+
+ul {
+    list-style: none;
+    margin: 0;
+    padding: 0
+}
+
+#right input {
+    width: 100%;
+    margin-bottom: .5rem;
+    padding: .3rem
+}
+
+.icon {
+    position: relative;
+    display: inline-block;
+    margin: 2px;
+    cursor: pointer
+}
+
+.icon img {
+    border-radius: 4px
+}
+
+.icon .del {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #c00;
+    color: #fff;
+    font-size: 10px;
+    border-radius: 50%;
+    padding: 0 3px;
+    line-height: 12px
+}
+
+/* ========== Overlay bar ============================================== */
+/* colours & glow size are set at runtime by overlay.js */
+:root {
+    --c: #0cf;
+    --g: 32px
+}
+
+.bar-wrap {
+    width: 80vw;
+    max-width: 900px;
+    min-width: 320px;
+    height: 40vh;
+    position: relative;
+    background: #333;
+    border: calc(max(4px, 2.5vh)) solid var(--c);
+    /* stay visible when scaled */
+    border-radius: 20px;
+    overflow: hidden;
+    animation: glow 1s infinite;
+}
+
+.fill {
+    height: 100%;
+    width: 0;
+    background: var(--c);
+    transition: width .35s ease;
+}
+
+.num {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(2rem, min(35vh, 15vw), 12rem);
+    font-weight: 700;
+    font-family: system-ui, sans-serif;
+    line-height: 1;
+    color: #fff;
+    pointer-events: none
+}
+
+/* flash on diamond increment */
+@keyframes flash {
+    0% {
+        filter: brightness(2)
+    }
+
+    90% {
+        filter: brightness(1)
+    }
+}
+
+.flash {
+    animation: flash .5s ease-out
+}
+
+/* scalable glow pulse */
+@keyframes glow {
+    0% {
+        box-shadow: 0 0 0 0 var(--c, transparent)
+    }
+
+    70% {
+        box-shadow: 0 0 var(--g) calc(var(--g)*0.8) transparent
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 transparent
+    }
+}
