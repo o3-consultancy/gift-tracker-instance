@@ -3,9 +3,22 @@ const catDiv = document.getElementById('catalogue');
 const groupsDiv = document.getElementById('groups');
 const giftUL = document.getElementById('giftStream');
 const statsDiv = document.getElementById('stats');
-const controls = document.getElementById('controls');
 
-let catalog = [], groups = {}, counters = {}, stats = {}, target = 10000;
+/* top-bar buttons */
+const btnConnect = document.getElementById('connect');
+const btnDisconnect = document.getElementById('disconnect');
+const btnNew = document.getElementById('newGroup');
+const btnReset = document.getElementById('reset');
+const btnTarget = document.getElementById('targetBtn');
+
+let catalog = [], groups = {}, counters = {}, stats = {}, target = 10_000;
+
+/* ---------- connect / disconnect ---------- */
+btnConnect.onclick = () => fetch('/api/connect', { method: 'POST' });
+btnDisconnect.onclick = () => fetch('/api/disconnect', { method: 'POST' });
+
+/* ---------- reset, new group, target ---------- */
+btnReset.onclick = () => fetch('/api/reset', { method: 'POST' });
 
 /* ========== drag-and-drop gifts ========== */
 let dragGiftId = null;
@@ -18,11 +31,7 @@ groupsDiv.addEventListener('drop', e => {
     saveGroups();
 });
 
-/* ========== top-bar buttons ========== */
-document.getElementById('reset').onclick =
-    () => fetch('/api/reset', { method: 'POST' });
-
-document.getElementById('newGroup').onclick = () => {
+btnNew.onclick = () => {
     const name = prompt('Group name?');
     if (!name) return;
     const id = 'g' + Date.now().toString(36);
@@ -30,9 +39,6 @@ document.getElementById('newGroup').onclick = () => {
     saveGroups();
 };
 
-/* global target button */
-const btnTarget = document.createElement('button');
-btnTarget.textContent = '🎯 Target';
 btnTarget.onclick = () => {
     const v = prompt('Global diamond target?', target);
     if (!v) return;
@@ -43,9 +49,8 @@ btnTarget.onclick = () => {
         body: JSON.stringify({ target })
     });
 };
-controls.append(btnTarget);
 
-/* ========== socket events ========== */
+/* ---------- socket events ---------- */
 socket.on('update', p => {
     ({ groups, counters, target, stats } = p);
     drawGroups();

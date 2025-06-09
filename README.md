@@ -60,8 +60,8 @@ gcloud builds submit --tag us-central1-docker.pkg.dev/o3-tt-subscription/gift-co
 USER=best_family05
 PASS=$(openssl rand -base64 12)      
 
-gcloud run deploy gift-yala-ss2 \
-  --image us-central1-docker.pkg.dev/o3-tt-subscription/gift-containers/gift-tracker:v0.6 \
+gcloud run deploy gift-yala-ss3 \
+  --image us-central1-docker.pkg.dev/o3-tt-subscription/gift-containers/gift-tracker:v1.0 \
   --region us-central1 \
   --memory 256Mi --min-instances 1 --max-instances 3 \
   --set-env-vars TIKTOK_USERNAME=${USER},DASH_PASSWORD=${PASS} \
@@ -80,6 +80,6 @@ gcloud run services update gift-${USER} --set-env-vars TIKTOK_USERNAME=newUser -
 gcloud run services update gift-${USER} --image ...:v0.4 --region us-central1
 
 ## DELETE
-gcloud run services delete gift-yala-ss2 --region us-central1
+gcloud run services delete gift-yala-ss3 --region us-central1
 
 
