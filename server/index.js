@@ -56,30 +56,48 @@ async function connectTikTok() {
 
     /* … listeners (streamEnd, viewer, member) stay the same … */
 
-    tiktok.on('gift', d => {
-      io.emit('giftStream', d);
+    tiktok.on('gift', data => {
+      io.emit('giftStream', data);       // still echo raw event to the UI
 
-      const delta = d.repeat_end ? d.repeat_count : 1;
+      /* 1️⃣  Calculate how many gifts to add (delta) */
+      let delta = 0;
+
+      if (data.giftType === 1) {               // streak-capable gifts
+        if (data.repeatEnd) {
+          delta = data.repeatCount;            // count once, at the end
+        } else {
+          return;                              // ignore in-progress ticks
+        }
+      } else {
+        /* Non-streak gifts arrive once with repeatCount === 1 */
+        delta = data.repeatCount || 1;
+      }
+
+      /* 2️⃣  Global totals */
       totalGifts += delta;
-      totalDiamonds += d.diamondCount * delta;
+      totalDiamonds += data.diamondCount * delta;
 
       /* add unseen gift to catalog */
-      if (!giftCatalog.find(g => g.id === d.giftId)) {
+      if (!giftCatalog.find(g => g.id === data.giftId)) {
         giftCatalog.push({
-          id: d.giftId,
-          name: d.giftName,
-          diamondCost: d.diamondCount,
-          iconUrl: d.giftPictureUrl || null
+          id: data.giftId,
+          name: data.giftName,
+          diamondCost: data.diamondCount,
+          iconUrl: data.giftPictureUrl || null
         });
         io.emit('giftCatalog', giftCatalog);      // update all clients
       }
 
+      /* 3️⃣  Per-group totals */
       const gid = Object.keys(groups).find(k =>
-        (groups[k].giftIds || []).includes(d.giftId));
+        (groups[k].giftIds || []).includes(data.giftId)
+      );
       if (gid) {
         counters[gid].count += delta;
-        counters[gid].diamonds += d.diamondCount * delta;
+        counters[gid].diamonds += data.diamondCount * delta;
       }
+
+      /* 4️⃣  Broadcast updated payload */
       broadcast();
     });
 
