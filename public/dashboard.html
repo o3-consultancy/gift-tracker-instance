@@ -1,23 +1,79 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
   <meta charset="utf-8">
-  <title>TikTok Gift Tracker</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TikTok Gift Tracker - Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #64748b;
+    }
+
+    /* Drag and drop styles */
+    .dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+
+    .drag-over {
+      border-color: #3b82f6 !important;
+      background: rgba(59, 130, 246, 0.05);
+    }
+
+    /* Animations */
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .animate-slide-in {
+      animation: slideIn 0.3s ease-out;
+    }
+
+    /* Modal backdrop */
+    .modal-backdrop {
+      backdrop-filter: blur(4px);
+    }
+  </style>
   <script>
     // Check authentication before loading dashboard
     (function() {
       const apiKey = sessionStorage.getItem('tracker_api_key');
 
       if (!apiKey) {
-        // No API key stored, redirect to login
         window.location.href = '/login.html';
         return;
       }
 
-      // Validate API key is still valid
       fetch('/api/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -25,53 +81,213 @@
       })
       .then(response => {
         if (!response.ok) {
-          // Invalid API key, redirect to unauthorized page
           sessionStorage.clear();
           window.location.href = '/unauthorized.html';
         }
       })
       .catch(error => {
         console.error('Auth check failed:', error);
-        // Allow access if validation fails (server might be starting up)
       });
     })();
   </script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              900: '#0f172a',
+              800: '#1e293b',
+              700: '#334155',
+              600: '#475569',
+            }
+          }
+        }
+      }
+    }
+  </script>
 </head>
 
-<body>
-  <!-- ─────────── TOP BAR ──────────── -->
-  <header>
-    <div id="stats"></div>
+<body class="bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white min-h-screen">
+  <!-- Top Navigation Bar -->
+  <header class="bg-dark-800/80 backdrop-blur-md border-b border-dark-700 sticky top-0 z-50">
+    <div class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Left: Logo & Stats -->
+        <div class="flex items-center space-x-6">
+          <div class="flex items-center space-x-2">
+            <span class="text-3xl">🎁</span>
+            <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent hidden sm:block">
+              Gift Tracker
+            </h1>
+          </div>
+          <div id="stats" class="hidden lg:flex items-center space-x-4 text-sm">
+            <!-- Stats will be injected by JS -->
+          </div>
+        </div>
 
-    <div id="controls">
-      <button id="connect">Connect</button>
-      <button id="disconnect">Disconnect</button>
-      <button id="newGroup">+ Group</button>
-      <button id="reset">Reset</button>
-      <button id="targetBtn">🎯 Target</button>
+        <!-- Right: Controls -->
+        <div class="flex items-center space-x-2">
+          <button id="connect" class="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-green-500/50 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Connect</span>
+          </button>
+
+          <button id="disconnect" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-gray-300 hover:text-white rounded-lg font-medium transition-all duration-200 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+            </svg>
+            <span class="hidden sm:inline">Disconnect</span>
+          </button>
+
+          <div class="w-px h-8 bg-dark-700 mx-2"></div>
+
+          <button id="newGroup" class="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/50 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            <span class="hidden sm:inline">New Group</span>
+          </button>
+
+          <button id="targetBtn" class="px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg font-medium transition-all duration-200 flex items-center space-x-2">
+            <span>🎯</span>
+            <span class="hidden md:inline">Target</span>
+          </button>
+
+          <button id="reset" class="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            <span class="hidden sm:inline">Reset</span>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
-  <!-- ─────────── MAIN LAYOUT ───────── -->
-  <div id="layout">
-    <!-- LEFT COLUMN -->
-    <div id="left">
-      <h3>Groups</h3>
-      <div id="groups" class="grid"></div>
-      <p><small>▶ opens overlay</small></p>
+  <!-- Mobile Stats Bar -->
+  <div class="lg:hidden bg-dark-800/50 border-b border-dark-700 px-4 py-2">
+    <div id="mobileStats" class="text-xs text-gray-400 overflow-x-auto whitespace-nowrap">
+      <!-- Mobile stats will be injected by JS -->
+    </div>
+  </div>
 
-      <div class="pane">
-        <h4>Gift Stream</h4>
-        <ul id="giftStream"></ul>
+  <!-- Main Content -->
+  <main class="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Left Column: Groups & Gift Stream -->
+      <div class="lg:col-span-8 space-y-6">
+
+        <!-- Groups Section -->
+        <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-dark-700 p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold flex items-center space-x-2">
+              <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              <span>Groups</span>
+            </h2>
+            <span class="text-xs text-gray-500 bg-dark-700/50 px-2 py-1 rounded">Drag gifts here</span>
+          </div>
+
+          <div id="groups" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 min-h-[200px]">
+            <!-- Groups will be injected by JS -->
+          </div>
+
+          <div class="mt-4 p-4 bg-dark-900/50 rounded-lg border border-dashed border-dark-600">
+            <p class="text-sm text-gray-400 text-center">
+              <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Tip: Click ▶ to open overlay window for streaming
+            </p>
+          </div>
+        </div>
+
+        <!-- Gift Stream -->
+        <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-dark-700 p-6">
+          <h2 class="text-lg font-semibold mb-4 flex items-center space-x-2">
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+            <span>Gift Stream</span>
+          </h2>
+          <div class="bg-dark-900/50 rounded-lg max-h-96 overflow-y-auto p-4">
+            <ul id="giftStream" class="space-y-2">
+              <!-- Gift stream items will be injected by JS -->
+            </ul>
+            <div id="emptyStream" class="text-center py-8 text-gray-500">
+              <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+              </svg>
+              <p class="text-sm">No gifts received yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Gift Catalogue -->
+      <div class="lg:col-span-4">
+        <div class="bg-dark-800/50 backdrop-blur-sm rounded-xl border border-dark-700 p-6 sticky top-24">
+          <h2 class="text-lg font-semibold mb-4 flex items-center space-x-2">
+            <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+            </svg>
+            <span>Gift Catalogue</span>
+          </h2>
+
+          <!-- Search Box -->
+          <div class="relative mb-4">
+            <input
+              id="catalogueSearch"
+              type="text"
+              placeholder="Search gifts..."
+              class="w-full px-4 py-3 pl-10 bg-dark-900/50 border border-dark-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+            >
+            <svg class="w-5 h-5 text-gray-500 absolute left-3 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+
+          <!-- Catalogue Grid -->
+          <div id="catalogue" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto pr-2">
+            <!-- Gift cards will be injected by JS -->
+          </div>
+
+          <div id="emptyCatalogue" class="hidden text-center py-8 text-gray-500">
+            <svg class="w-12 h-12 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-sm">No gifts found</p>
+          </div>
+        </div>
       </div>
     </div>
+  </main>
 
-    <!-- RIGHT COLUMN -->
-    <div id="right">
-      <h3>Gift Catalogue</h3>
-      <!-- search box injected by JS -->
-      <div id="catalogue" class="grid"></div>
+  <!-- Modal Template -->
+  <div id="modalContainer" class="hidden fixed inset-0 z-50 overflow-y-auto modal-backdrop">
+    <div class="flex items-center justify-center min-h-screen px-4">
+      <div class="fixed inset-0 bg-black/60 transition-opacity" onclick="closeModal()"></div>
+
+      <div class="relative bg-dark-800 rounded-xl shadow-2xl max-w-md w-full border border-dark-700 animate-slide-in">
+        <div class="p-6">
+          <h3 id="modalTitle" class="text-lg font-semibold mb-4"></h3>
+          <div id="modalContent" class="mb-6"></div>
+          <div id="modalActions" class="flex justify-end space-x-3">
+            <!-- Modal buttons will be injected by JS -->
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Toast Notification Template -->
+  <div id="toastContainer" class="fixed top-20 right-4 z-50 space-y-2">
+    <!-- Toasts will be injected by JS -->
   </div>
 
   <script src="dashboard.js"></script>
