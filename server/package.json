@@ -1,13 +1,28 @@
 {
   "name": "gift-tracker-instance",
-  "version": "0.3.0",
+  "version": "2.0.0",
   "type": "module",
+  "description": "TikTok Gift Tracker Instance - API Key Authentication",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "socket.io": "^4.7.5",
-    "tiktok-live-connector": "^2",
-    "express-basic-auth": "^1.2.1",
-    "fs-extra": "^11.2.0",
-    "cors": "^2.8.5"
-  }
+    "tiktok-live-connector": "^2"
+  },
+  "keywords": [
+    "tiktok",
+    "live",
+    "gifts",
+    "tracker",
+    "saas",
+    "api-key"
+  ],
+  "author": "O3 Consultancy LLC",
+  "license": "UNLICENSED"
 }

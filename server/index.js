@@ -1,30 +1,40 @@
 import express from 'express';
-import basicAuth from 'express-basic-auth';
 import cors from 'cors';
+import axios from 'axios';
+import dotenv from 'dotenv';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
 import { WebcastPushConnection } from 'tiktok-live-connector';
-import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Load environment variables
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+
 /* ── env ───────────────────────────── */
 const PORT = process.env.PORT || 3000;
+const BACKEND_API_URL = process.env.BACKEND_API_URL;
+const API_KEY = process.env.API_KEY;
+const ACCOUNT_ID = process.env.ACCOUNT_ID;
 const USERNAME = process.env.TIKTOK_USERNAME;
-const DASH_PASSWORD = process.env.DASH_PASSWORD || 'changeme';
 
-if (!USERNAME) { console.error('TIKTOK_USERNAME missing'); process.exit(1); }
+// Validate required environment variables
+if (!API_KEY || !ACCOUNT_ID) {
+  console.error('❌ API_KEY and ACCOUNT_ID are required in .env file');
+  console.error('   Please configure your instance credentials.');
+  process.exit(1);
+}
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+if (!USERNAME) {
+  console.error('❌ TIKTOK_USERNAME is required in .env file');
+  process.exit(1);
+}
 
-/* ── config & saved state ──────────── */
-const cfgPath = path.resolve('config/config.json');
-await fs.ensureFile(cfgPath);
-let cfg = await fs.readJson(cfgPath).catch(() => ({ target: 10_000 }));
-
-const groupsPath = path.resolve('config/groups.json');
-await fs.ensureFile(groupsPath);
-let groups = await fs.readJson(groupsPath).catch(() => ({}));
+/* ── Backend-loaded configuration ──────────── */
+let cfg = { target: 10_000 };  // Will be loaded from backend
+let groups = {};               // Will be loaded from backend
 
 /* ── runtime state ─────────────────── */
 let counters = {};
@@ -40,6 +50,141 @@ function initCounters() {
   for (const g in groups) counters[g] = { count: 0, diamonds: 0 };
 }
 initCounters();
+
+/* ── Backend API Helper Functions ──────────────────────────────────── */
+
+// Create headers for backend API requests
+function getBackendHeaders() {
+  return {
+    'X-API-Key': API_KEY,
+    'X-Account-ID': ACCOUNT_ID,
+    'Content-Type': 'application/json'
+  };
+}
+
+// Load gift groups from backend
+async function loadGiftGroupsFromBackend() {
+  if (!BACKEND_API_URL) {
+    console.log('⚠️ BACKEND_API_URL not set, skipping backend load');
+    return {};
+  }
+
+  try {
+    console.log(`📥 Loading gift groups from backend for account: ${ACCOUNT_ID}`);
+
+    const response = await axios.get(
+      `${BACKEND_API_URL}/${ACCOUNT_ID}/gift-groups`,
+      { headers: getBackendHeaders(), timeout: 10000 }
+    );
+
+    if (response.data.success && response.data.data) {
+      console.log(`✅ Loaded ${Object.keys(response.data.data).length} gift groups from backend`);
+      return response.data.data;
+    }
+
+    return {};
+  } catch (error) {
+    if (error.response?.status === 404) {
+      console.log('ℹ️ No gift groups found in backend, starting fresh');
+      return {};
+    }
+    console.error('❌ Failed to load gift groups from backend:', error.message);
+    return {};
+  }
+}
+
+// Save gift groups to backend
+async function saveGiftGroupsToBackend(groupsData) {
+  if (!BACKEND_API_URL) {
+    console.log('⚠️ BACKEND_API_URL not set, skipping backend save');
+    return;
+  }
+
+  try {
+    await axios.post(
+      `${BACKEND_API_URL}/${ACCOUNT_ID}/gift-groups`,
+      { groups: groupsData },
+      { headers: getBackendHeaders(), timeout: 10000 }
+    );
+
+    console.log('✅ Gift groups saved to backend');
+  } catch (error) {
+    console.error('❌ Failed to save gift groups to backend:', error.message);
+  }
+}
+
+// Load configuration from backend
+async function loadConfigFromBackend() {
+  if (!BACKEND_API_URL) {
+    console.log('⚠️ BACKEND_API_URL not set, skipping backend load');
+    return { target: 10_000 };
+  }
+
+  try {
+    console.log(`📥 Loading configuration from backend for account: ${ACCOUNT_ID}`);
+
+    const response = await axios.get(
+      `${BACKEND_API_URL}/${ACCOUNT_ID}/config`,
+      { headers: getBackendHeaders(), timeout: 10000 }
+    );
+
+    if (response.data.success && response.data.data) {
+      console.log(`✅ Configuration loaded from backend`);
+      return response.data.data;
+    }
+
+    return { target: 10_000 };
+  } catch (error) {
+    if (error.response?.status === 404) {
+      console.log('ℹ️ No configuration found in backend, using defaults');
+      return { target: 10_000 };
+    }
+    console.error('❌ Failed to load configuration from backend:', error.message);
+    return { target: 10_000 };
+  }
+}
+
+// Save configuration to backend
+async function saveConfigToBackend(configData) {
+  if (!BACKEND_API_URL) {
+    console.log('⚠️ BACKEND_API_URL not set, skipping backend save');
+    return;
+  }
+
+  try {
+    await axios.post(
+      `${BACKEND_API_URL}/${ACCOUNT_ID}/config`,
+      configData,
+      { headers: getBackendHeaders(), timeout: 10000 }
+    );
+
+    console.log('✅ Configuration saved to backend');
+  } catch (error) {
+    console.error('❌ Failed to save configuration to backend:', error.message);
+  }
+}
+
+// Initialize: Load data from backend on startup
+async function initializeFromBackend() {
+  console.log('\n🔄 Initializing from backend...');
+
+  const [loadedGroups, loadedConfig] = await Promise.all([
+    loadGiftGroupsFromBackend(),
+    loadConfigFromBackend()
+  ]);
+
+  groups = loadedGroups;
+  cfg = loadedConfig;
+
+  initCounters();
+
+  console.log('✅ Backend initialization complete');
+  console.log(`   - Groups: ${Object.keys(groups).length}`);
+  console.log(`   - Target: ${cfg.target}\n`);
+}
+
+// Call initialization
+await initializeFromBackend();
 
 /* ── TikTok connector (created on demand) ─────────────────────────── */
 let tiktok = null;
@@ -138,11 +283,13 @@ app.use(cors());
 app.use(express.json());
 
 const pub = path.join(__dirname, '..', 'public');
+
+// Public routes (no auth required)
 app.use('/overlay.html', express.static(path.join(pub, 'overlay.html')));
 app.use('/overlay.js', express.static(path.join(pub, 'overlay.js')));
 app.use('/styles.css', express.static(path.join(pub, 'styles.css')));
 
-app.use(basicAuth({ users: { admin: DASH_PASSWORD }, challenge: true }));
+// Dashboard (no auth required - instance is configured via .env)
 app.use(express.static(pub));
 app.get('/', (_, res) => res.sendFile(path.join(pub, 'index.html')));
 
@@ -153,11 +300,19 @@ app.post('/api/disconnect', async (_, res) => { await disconnectTikTok(); res.js
 app.get('/api/state', (_, res) => res.json(buildPayload()));
 
 app.post('/api/groups', async (req, res) => {
-  groups = req.body || {};
-  await fs.writeJson(groupsPath, groups, { spaces: 2 });
-  initCounters();
-  broadcast();
-  res.json({ ok: true });
+  try {
+    groups = req.body || {};
+
+    // Save to backend
+    await saveGiftGroupsToBackend(groups);
+
+    initCounters();
+    broadcast();
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error saving groups:', error);
+    res.status(500).json({ error: 'Failed to save groups' });
+  }
 });
 
 
@@ -174,10 +329,18 @@ app.post('/api/counter', (req, res) => {
 });
 
 app.post('/api/target', async (req, res) => {
-  cfg.target = Number(req.body?.target) || cfg.target;
-  await fs.writeJson(cfgPath, cfg, { spaces: 2 });
-  broadcast();
-  res.json({ ok: true });
+  try {
+    cfg.target = Number(req.body?.target) || cfg.target;
+
+    // Save to backend
+    await saveConfigToBackend(cfg);
+
+    broadcast();
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error saving target:', error);
+    res.status(500).json({ error: 'Failed to save target' });
+  }
 });
 
 app.post('/api/reset', (_, res) => {
@@ -214,5 +377,17 @@ function buildPayload() {
 function broadcast() { io.emit('update', buildPayload()); }
 
 /* ── start server ─────────────────────────────────────────────────── */
-http.listen(PORT, () =>
-  console.log(`Dashboard → http://localhost:${PORT}  (admin / ${DASH_PASSWORD})`));
+http.listen(PORT, () => {
+  console.log('\n🎉 TikTok Gift Tracker Instance - API Key Authentication');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`📡 Server running on: http://localhost:${PORT}`);
+  console.log(`🔐 Account ID: ${ACCOUNT_ID}`);
+  console.log(`🎯 TikTok Username: @${USERNAME}`);
+  if (BACKEND_API_URL) {
+    console.log(`🌐 Backend API: ${BACKEND_API_URL}`);
+  } else {
+    console.log(`⚠️  No backend configured (running standalone)`);
+  }
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('\n✅ Ready to track gifts!\n');
+});
