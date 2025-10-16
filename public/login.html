@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Access Tracker - API Key Required</title>
+  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      padding: 20px;
+    }
+
+    .login-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 450px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .login-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .login-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .login-subtitle {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .form-group {
+      margin-bottom: 24px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      border: none;
+      border-radius: 8px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-login:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .error-message {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      color: #fca5a5;
+      font-size: 14px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+      animation: shake 0.5s;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-10px); }
+      75% { transform: translateX(10px); }
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .help-text {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+    }
+
+    .help-text a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+
+    .help-text a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body class="bg-dark-900">
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="login-icon">🎁</div>
+        <h1 class="login-title">Tracker Access</h1>
+        <p class="login-subtitle">Enter your API Key to access this tracker instance</p>
+      </div>
+
+      <div id="errorMessage" class="error-message"></div>
+
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="apiKey" class="form-label">API Key</label>
+          <input
+            type="password"
+            id="apiKey"
+            class="form-input"
+            placeholder="Enter your API Key"
+            required
+            autocomplete="off"
+          >
+        </div>
+
+        <button type="submit" class="btn-login" id="loginBtn">
+          Access Dashboard
+        </button>
+      </form>
+
+      <div class="help-text">
+        Don't have an API Key? Contact your administrator.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const apiKeyInput = document.getElementById('apiKey');
+    const loginBtn = document.getElementById('loginBtn');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Check if already authenticated
+    const storedApiKey = sessionStorage.getItem('tracker_api_key');
+    if (storedApiKey) {
+      // Validate stored key
+      validateAndRedirect(storedApiKey);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const apiKey = apiKeyInput.value.trim();
+
+      if (!apiKey) {
+        showError('Please enter an API Key');
+        return;
+      }
+
+      await validateAndRedirect(apiKey);
+    });
+
+    async function validateAndRedirect(apiKey) {
+      try {
+        // Show loading state
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<span class="loading-spinner"></span>Validating...';
+        errorMessage.classList.remove('show');
+
+        // Validate API Key with server
+        const response = await fetch('/api/validate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ apiKey })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          // Store API Key in session
+          sessionStorage.setItem('tracker_api_key', apiKey);
+          sessionStorage.setItem('tracker_account_id', data.accountId);
+          sessionStorage.setItem('tracker_username', data.tiktokUsername);
+
+          // Show success state
+          loginBtn.innerHTML = '✓ Access Granted';
+          loginBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+
+          // Redirect to dashboard
+          setTimeout(() => {
+            window.location.href = '/dashboard.html';
+          }, 500);
+        } else {
+          showError(data.error || 'Invalid API Key');
+          loginBtn.disabled = false;
+          loginBtn.innerHTML = 'Access Dashboard';
+        }
+      } catch (error) {
+        console.error('Validation error:', error);
+        showError('Failed to validate API Key. Please try again.');
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = 'Access Dashboard';
+      }
+    }
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.add('show');
+
+      // Shake animation
+      setTimeout(() => {
+        errorMessage.classList.remove('show');
+      }, 5000);
+    }
+
+    // Allow Enter key to submit
+    apiKeyInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        form.dispatchEvent(new Event('submit'));
+      }
+    });
+  </script>
+</body>
+
+</html>

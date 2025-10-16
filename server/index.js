@@ -289,11 +289,46 @@ app.use('/overlay.html', express.static(path.join(pub, 'overlay.html')));
 app.use('/overlay.js', express.static(path.join(pub, 'overlay.js')));
 app.use('/styles.css', express.static(path.join(pub, 'styles.css')));
 
-// Dashboard (no auth required - instance is configured via .env)
+// Public routes - serve static files
 app.use(express.static(pub));
+
+// Root route - redirects to login or dashboard based on session
 app.get('/', (_, res) => res.sendFile(path.join(pub, 'index.html')));
 
+// Explicit routes for better control
+app.get('/login', (_, res) => res.sendFile(path.join(pub, 'login.html')));
+app.get('/dashboard', (_, res) => res.sendFile(path.join(pub, 'dashboard.html')));
+app.get('/unauthorized', (_, res) => res.sendFile(path.join(pub, 'unauthorized.html')));
+
 /* ── API routes ───────────────────────────────────────────────────── */
+
+// API Key validation endpoint (public - no auth required)
+app.post('/api/validate', (req, res) => {
+  const { apiKey } = req.body;
+
+  if (!apiKey) {
+    return res.status(400).json({
+      success: false,
+      error: 'API Key is required'
+    });
+  }
+
+  // Validate against server's API Key
+  if (apiKey === API_KEY) {
+    return res.json({
+      success: true,
+      accountId: ACCOUNT_ID,
+      tiktokUsername: USERNAME
+    });
+  }
+
+  return res.status(401).json({
+    success: false,
+    error: 'Invalid API Key'
+  });
+});
+
+// Protected routes - require valid session
 app.post('/api/connect', async (_, res) => { await connectTikTok(); res.json({ ok: true }); });
 app.post('/api/disconnect', async (_, res) => { await disconnectTikTok(); res.json({ ok: true }); });
 
