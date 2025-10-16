@@ -19,8 +19,21 @@ let catalog = [], groups = {}, counters = {}, stats = {
     liveViewers: 0,
     uniqueJoins: 0,
     totalGifts: 0,
-    totalDiamonds: 0
+    totalDiamonds: 0,
+    reconnectAttempts: 0,
+    maxReconnectAttempts: 10,
+    isReconnecting: false,
+    errorCount: 0,
+    lastError: null
 }, target = 10_000;
+
+function updateButtonVisibility() {
+    const isConnected = stats.liveStatus === 'ONLINE' || stats.liveStatus === 'CONNECTING' || stats.liveStatus === 'RECONNECTING';
+
+    // Show/hide buttons based on connection status
+    btnConnect.style.display = isConnected ? 'none' : 'flex';
+    btnDisconnect.style.display = isConnected ? 'flex' : 'none';
+}
 
 /* ---------- connect / disconnect ---------- */
 btnConnect.onclick = () => {
@@ -270,17 +283,64 @@ socket.on('giftCatalog', c => {
     drawCatalog();
 });
 
+/* ---------- error handling ---------- */
+socket.on('error', errorData => {
+    console.error('Connection error:', errorData);
+    showToast(`Error: ${errorData.message}`, 'error');
+});
+
 /* ========== UI builders ========== */
 function updateStats() {
-    const statusColor = stats.liveStatus === 'LIVE' ? 'text-green-400' : 'text-gray-400';
-    const statusIcon = stats.liveStatus === 'LIVE' ?
-        '<span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>' :
-        '<span class="w-2 h-2 bg-gray-400 rounded-full"></span>';
+    // Enhanced status colors and icons based on connection state
+    let statusColor, statusIcon, statusText;
+
+    switch (stats.liveStatus) {
+        case 'ONLINE':
+            statusColor = 'text-green-400';
+            statusIcon = '<span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>';
+            statusText = 'ONLINE';
+            break;
+        case 'CONNECTING':
+            statusColor = 'text-blue-400';
+            statusIcon = '<span class="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></span>';
+            statusText = 'CONNECTING';
+            break;
+        case 'RECONNECTING':
+            statusColor = 'text-yellow-400';
+            statusIcon = '<span class="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>';
+            statusText = `RECONNECTING (${stats.reconnectAttempts}/${stats.maxReconnectAttempts})`;
+            break;
+        case 'OFFLINE':
+            statusColor = 'text-orange-400';
+            statusIcon = '<span class="w-2 h-2 bg-orange-400 rounded-full"></span>';
+            statusText = 'OFFLINE';
+            break;
+        case 'DISCONNECTED':
+        default:
+            statusColor = 'text-gray-400';
+            statusIcon = '<span class="w-2 h-2 bg-gray-400 rounded-full"></span>';
+            statusText = 'DISCONNECTED';
+            break;
+    }
+
+    // Update button visibility
+    updateButtonVisibility();
+
+    // Show error indicator if there are errors
+    const errorIndicator = stats.errorCount > 0 ? `
+        <div class="flex items-center space-x-1 text-red-400 cursor-pointer" onclick="showErrorLog()" title="Click to view errors">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+            <span class="text-xs font-semibold">${stats.errorCount}</span>
+        </div>
+    ` : '';
 
     const statsHTML = `
         <div class="flex items-center space-x-2">
             ${statusIcon}
-            <span class="${statusColor} font-semibold">${stats.liveStatus || 'DISCONNECTED'}</span>
+            <span class="${statusColor} font-semibold">${statusText}</span>
+            ${errorIndicator}
         </div>
         <div class="text-gray-400">@${stats.username || 'N/A'}</div>
         <div class="flex items-center space-x-1">
@@ -626,6 +686,62 @@ function randomColor() {
         '#10b981', '#06b6d4', '#6366f1', '#a855f7', '#f43f5e'
     ];
     return colors[Math.floor(Math.random() * colors.length)];
+}
+
+/* ========== Error Log Viewer ========== */
+function showErrorLog() {
+    fetch('/api/errors')
+        .then(res => res.json())
+        .then(data => {
+            const errorList = data.errors.length > 0 ?
+                data.errors.map(err => `
+                    <div class="p-3 bg-dark-800/50 border border-dark-700 rounded-lg mb-2">
+                        <div class="flex items-start justify-between mb-1">
+                            <span class="text-xs font-semibold text-red-400">[${err.category}]</span>
+                            <span class="text-xs text-gray-500">${new Date(err.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                        <p class="text-sm text-white">${err.message}</p>
+                        ${err.details ? `<p class="text-xs text-gray-400 mt-1">${err.details}</p>` : ''}
+                        ${err.attempt > 0 ? `<span class="text-xs text-yellow-400">Attempt ${err.attempt}</span>` : ''}
+                    </div>
+                `).join('') :
+                '<p class="text-gray-400 text-center py-4">No errors logged</p>';
+
+            const reconnectInfo = data.isReconnecting ?
+                `<div class="mb-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                    <p class="text-sm text-yellow-400">🔄 Reconnecting... (${data.reconnectAttempts}/${data.maxReconnectAttempts})</p>
+                </div>` : '';
+
+            showModal({
+                title: `Error Log (${data.count} errors)`,
+                content: `
+                    ${reconnectInfo}
+                    <div class="max-h-96 overflow-y-auto space-y-2">
+                        ${errorList}
+                    </div>
+                `,
+                actions: [
+                    {
+                        label: 'Clear Log',
+                        class: 'px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors',
+                        onClick: () => {
+                            fetch('/api/errors/clear', { method: 'POST' })
+                                .then(() => {
+                                    showToast('Error log cleared', 'success');
+                                    closeModal();
+                                })
+                                .catch(() => showToast('Failed to clear log', 'error'));
+                        }
+                    },
+                    {
+                        label: 'Close',
+                        class: 'px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors',
+                        onClick: () => closeModal()
+                    }
+                ]
+            });
+        })
+        .catch(() => showToast('Failed to load error log', 'error'));
 }
 
 /* ========== Search functionality ========== */
