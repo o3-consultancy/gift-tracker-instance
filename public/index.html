@@ -1,50 +1,25 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TikTok Gift Tracker</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    // Redirect to login page
+    const apiKey = sessionStorage.getItem('tracker_api_key');
+
+    if (apiKey) {
+      // Already has API key, go to dashboard
+      window.location.href = '/dashboard.html';
+    } else {
+      // No API key, go to login
+      window.location.href = '/login.html';
+    }
+  </script>
 </head>
-
 <body>
-  <!-- ─────────── TOP BAR ──────────── -->
-  <header>
-    <div id="stats"></div>
-
-    <div id="controls">
-      <button id="connect">Connect</button>
-      <button id="disconnect">Disconnect</button>
-      <button id="newGroup">+ Group</button>
-      <button id="reset">Reset</button>
-      <button id="targetBtn">🎯 Target</button>
-    </div>
-  </header>
-
-  <!-- ─────────── MAIN LAYOUT ───────── -->
-  <div id="layout">
-    <!-- LEFT COLUMN -->
-    <div id="left">
-      <h3>Groups</h3>
-      <div id="groups" class="grid"></div>
-      <p><small>▶ opens overlay</small></p>
-
-      <div class="pane">
-        <h4>Gift Stream</h4>
-        <ul id="giftStream"></ul>
-      </div>
-    </div>
-
-    <!-- RIGHT COLUMN -->
-    <div id="right">
-      <h3>Gift Catalogue</h3>
-      <!-- search box injected by JS -->
-      <div id="catalogue" class="grid"></div>
-    </div>
+  <div style="text-align: center; padding: 50px; font-family: sans-serif;">
+    <p>Redirecting...</p>
   </div>
-
-  <script src="dashboard.js"></script>
 </body>
-
 </html>

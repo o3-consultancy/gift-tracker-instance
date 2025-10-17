@@ -5,6 +5,11 @@ const pass = q.get('pw') || '';
 
 const fill = document.getElementById('fill');
 const num = document.getElementById('num');
+const infoPanel = document.getElementById('infoPanel');
+const groupName = document.getElementById('groupName');
+const targetValue = document.getElementById('targetValue');
+const progressValue = document.getElementById('progressValue');
+const remainingValue = document.getElementById('remainingValue');
 
 let target = 1;
 let last = 0;
@@ -32,11 +37,51 @@ sock.on('update', p => {
     const pct = Math.min(100, (diamonds / target) * 100);
 
     fill.style.width = pct + '%';
-    num.textContent = diamonds;
+    num.textContent = diamonds.toLocaleString();
+
+    // Update info panel
+    groupName.textContent = g.name;
+    targetValue.textContent = target.toLocaleString();
+    progressValue.textContent = pct.toFixed(1) + '%';
+    remainingValue.textContent = Math.max(0, target - diamonds).toLocaleString();
+    infoPanel.style.display = 'block';
 
     /* flash when value rises */
     if (diamonds > last) {
-        num.classList.remove('flash'); void num.offsetWidth; num.classList.add('flash');
+        num.classList.remove('flash');
+        void num.offsetWidth;
+        num.classList.add('flash');
+
+        // Add particle effect
+        createParticles();
     }
     last = diamonds;
+});
+
+// Create particle effect on gift receive
+function createParticles() {
+    const barWrap = document.querySelector('.bar-wrap');
+    const particleCount = 5;
+
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        particle.className = 'particle';
+        particle.style.left = Math.random() * 100 + '%';
+        particle.style.bottom = '0';
+        particle.style.animationDelay = (i * 0.1) + 's';
+
+        barWrap.appendChild(particle);
+
+        // Remove particle after animation
+        setTimeout(() => particle.remove(), 2000);
+    }
+}
+
+// Toggle info panel visibility on click
+document.addEventListener('click', () => {
+    if (infoPanel.style.display === 'none') {
+        infoPanel.style.display = 'block';
+    } else {
+        infoPanel.style.display = 'none';
+    }
 });
