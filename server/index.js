@@ -53,6 +53,7 @@ let giftCatalog = [];
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 let isManualDisconnect = false;
+let maxAttemptsReached = false;       // Permanent flag to stop auto-reconnect after max attempts
 const MAX_RECONNECT_ATTEMPTS = 5;     // Reduced to 5 attempts to prevent log flooding
 const BASE_RECONNECT_DELAY = 2000;    // 2 seconds
 const MAX_RECONNECT_DELAY = 60000;    // 60 seconds
@@ -497,24 +498,26 @@ async function attemptReconnect() {
     return;
   }
 
+  // Check if max attempts was already reached in a previous cycle
+  if (maxAttemptsReached) {
+    console.log('⏸️  Max attempts already reached - auto-reconnect disabled');
+    console.log('ℹ️  Please manually reconnect when the stream is live');
+    return;
+  }
+
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
     console.log(`❌ Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached - stopping reconnection attempts`);
     console.log('ℹ️  Please check if the stream is live and reconnect manually when ready');
     logError('RECONNECT', `Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`, {
       attempts: reconnectAttempts,
-      message: 'Auto-reconnection stopped to prevent log flooding'
+      message: 'Auto-reconnection stopped permanently. Manual reconnection required.'
     });
 
-    // Mark as manual disconnect to prevent error handler from triggering more reconnects
+    // Set permanent flag to prevent any future auto-reconnect attempts
+    maxAttemptsReached = true;
     isManualDisconnect = true;
     liveStatus = 'OFFLINE';
     broadcast();
-
-    // Reset flag after a longer delay to allow manual reconnection
-    setTimeout(() => {
-      isManualDisconnect = false;
-      console.log('ℹ️  Auto-reconnect enabled - you can now manually reconnect');
-    }, 30000); // 30 seconds
 
     return;
   }
@@ -641,6 +644,7 @@ async function connectTikTok(isAutoReconnect = false) {
     // Only reset counter and cancel reconnect on manual connect
     cancelReconnect();
     reconnectAttempts = 0;
+    maxAttemptsReached = false; // Reset the permanent flag on manual connect
   }
 
   isManualDisconnect = false;
@@ -699,6 +703,7 @@ async function connectTikTok(isAutoReconnect = false) {
       console.log('✅ Successfully connected to TikTok Live');
       liveStatus = 'ONLINE';
       reconnectAttempts = 0; // Reset on successful connection
+      maxAttemptsReached = false; // Reset permanent flag on successful connection
       recordActivity();
       startHealthMonitoring(); // Start health checks
       broadcast();
