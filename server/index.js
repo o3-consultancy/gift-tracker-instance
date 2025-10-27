@@ -437,7 +437,7 @@ function startHealthMonitoring() {
             timeSinceActivity
           });
           await disconnectTikTok();
-          await connectTikTok();
+          await connectTikTok(true); // Pass true to indicate auto-reconnect
         }
       } else {
         connectionHealth.consecutiveFailures = 0;
@@ -529,7 +529,7 @@ async function attemptReconnect() {
   reconnectTimer = setTimeout(async () => {
     try {
       console.log(`⚡ Attempting to reconnect (attempt ${reconnectAttempts})...`);
-      await connectTikTok();
+      await connectTikTok(true); // Pass true to indicate auto-reconnect
 
       if (liveStatus === 'ONLINE') {
         console.log('✅ Reconnection successful!');
@@ -633,12 +633,16 @@ function processGiftCount(data, delta) {
   debugLog(`Gift processed in ${processingTime}ms`);
 }
 
-async function connectTikTok() {
+async function connectTikTok(isAutoReconnect = false) {
   if (liveStatus === 'CONNECTING' || liveStatus === 'ONLINE') return;
 
-  // Cancel any pending reconnect timers and reset counter
-  cancelReconnect();
-  reconnectAttempts = 0; // Reset attempts on manual connect
+  // Cancel any pending reconnect timers
+  if (!isAutoReconnect) {
+    // Only reset counter and cancel reconnect on manual connect
+    cancelReconnect();
+    reconnectAttempts = 0;
+  }
+
   isManualDisconnect = false;
 
   liveStatus = 'CONNECTING'; broadcast();
