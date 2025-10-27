@@ -53,7 +53,7 @@ let giftCatalog = [];
 let reconnectAttempts = 0;
 let reconnectTimer = null;
 let isManualDisconnect = false;
-const MAX_RECONNECT_ATTEMPTS = 10;
+const MAX_RECONNECT_ATTEMPTS = 5;     // Reduced to 5 attempts to prevent log flooding
 const BASE_RECONNECT_DELAY = 2000;    // 2 seconds
 const MAX_RECONNECT_DELAY = 60000;    // 60 seconds
 
@@ -498,8 +498,12 @@ async function attemptReconnect() {
   }
 
   if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.log('❌ Max reconnection attempts reached. Please reconnect manually.');
-    logError('RECONNECT', 'Max reconnection attempts reached', { attempts: reconnectAttempts });
+    console.log(`❌ Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached - stopping reconnection attempts`);
+    console.log('ℹ️  Please check if the stream is live and reconnect manually when ready');
+    logError('RECONNECT', `Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`, {
+      attempts: reconnectAttempts,
+      message: 'Auto-reconnection stopped to prevent log flooding'
+    });
     liveStatus = 'OFFLINE';
     broadcast();
     return;
@@ -722,9 +726,9 @@ async function connectTikTok() {
       }
     });
 
-    tiktok.on('streamEnd', () => {
+    tiktok.on('streamEnd', async () => {
       trackEvent('streamEnd');
-      console.log('📴 Stream ended by host');
+      console.log('📴 Stream ended by host - disconnecting session');
       logError('STREAM', 'Stream ended by host', { endTime: new Date().toISOString() });
 
       // Stop health monitoring
@@ -736,11 +740,28 @@ async function connectTikTok() {
       });
       giftComboTracker.clear();
 
-      liveStatus = 'OFFLINE';
-      broadcast();
+      // Mark as manual disconnect to prevent auto-reconnect
+      isManualDisconnect = true;
+      cancelReconnect();
 
-      // Don't auto-reconnect when stream ends naturally
-      console.log('ℹ️  Stream ended - not attempting reconnect');
+      // Disconnect the session completely
+      if (tiktok) {
+        try {
+          await tiktok.disconnect();
+        } catch (err) {
+          console.error('Error during stream end disconnect:', err.message);
+        }
+        tiktok = null;
+      }
+
+      liveStatus = 'DISCONNECTED';
+      broadcast();
+      console.log('✅ Session disconnected - stream is offline');
+
+      // Reset manual disconnect flag after a delay
+      setTimeout(() => {
+        isManualDisconnect = false;
+      }, 5000);
     });
 
     /* ── NEW: Member join event for unique visitors ── */

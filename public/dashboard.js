@@ -21,7 +21,7 @@ let catalog = [], groups = {}, counters = {}, stats = {
     totalGifts: 0,
     totalDiamonds: 0,
     reconnectAttempts: 0,
-    maxReconnectAttempts: 10,
+    maxReconnectAttempts: 5,  // Updated to match server
     isReconnecting: false,
     errorCount: 0,
     lastError: null
