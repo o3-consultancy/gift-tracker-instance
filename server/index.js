@@ -504,8 +504,18 @@ async function attemptReconnect() {
       attempts: reconnectAttempts,
       message: 'Auto-reconnection stopped to prevent log flooding'
     });
+
+    // Mark as manual disconnect to prevent error handler from triggering more reconnects
+    isManualDisconnect = true;
     liveStatus = 'OFFLINE';
     broadcast();
+
+    // Reset flag after a longer delay to allow manual reconnection
+    setTimeout(() => {
+      isManualDisconnect = false;
+      console.log('ℹ️  Auto-reconnect enabled - you can now manually reconnect');
+    }, 30000); // 30 seconds
+
     return;
   }
 
@@ -528,7 +538,14 @@ async function attemptReconnect() {
     } catch (err) {
       console.error(`❌ Reconnection attempt ${reconnectAttempts} failed:`, err.message);
       logError('RECONNECT', `Attempt ${reconnectAttempts} failed`, err.message);
-      attemptReconnect(); // Try again
+
+      // Only try again if we haven't reached max attempts
+      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        attemptReconnect(); // Try again
+      } else {
+        // Max attempts reached, stop trying
+        attemptReconnect(); // This will hit the max check and stop
+      }
     }
   }, delay);
 }
@@ -619,8 +636,9 @@ function processGiftCount(data, delta) {
 async function connectTikTok() {
   if (liveStatus === 'CONNECTING' || liveStatus === 'ONLINE') return;
 
-  // Cancel any pending reconnect timers
+  // Cancel any pending reconnect timers and reset counter
   cancelReconnect();
+  reconnectAttempts = 0; // Reset attempts on manual connect
   isManualDisconnect = false;
 
   liveStatus = 'CONNECTING'; broadcast();
