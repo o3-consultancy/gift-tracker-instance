@@ -29,9 +29,7 @@ sock.on('update', p => {
     const g = p.groups[groupId];
     if (!g) return;                        // unknown group
 
-    /* set color once (uses CSS var for both outline & fill) */
-    if (document.documentElement.style.getPropertyValue('--c') === '')
-        document.documentElement.style.setProperty('--c', g.color);
+    // Enterprise Edition: Fixed gold/white theme (no dynamic colors)
 
     const diamonds = (p.counters[groupId] || { diamonds: 0 }).diamonds;
     const pct = Math.min(100, (diamonds / target) * 100);

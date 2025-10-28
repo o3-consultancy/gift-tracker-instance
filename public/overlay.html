@@ -13,9 +13,10 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        /* Custom bar styles */
+        /* Custom bar styles - Enterprise Edition */
         :root {
-            --c: #0cf;
+            --gold: #FFD700;
+            --white: #FFFFFF;
             --g: 32px;
         }
 
@@ -25,18 +26,29 @@
             min-width: 320px;
             height: 40vh;
             position: relative;
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: calc(max(4px, 2.5vh)) solid var(--c);
+            background: transparent;
+            /* Double border effect: outer white, inner gold */
+            border: calc(max(6px, 3vh)) solid var(--white);
+            box-shadow:
+                /* Inner gold border */
+                inset 0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                /* Outer gold border */
+                0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                /* Gold pulsating glow */
+                0 0 var(--g) calc(var(--g)*0.5) var(--gold),
+                0 0 calc(var(--g)*1.5) calc(var(--g)*0.8) var(--gold);
             border-radius: 20px;
             overflow: hidden;
-            animation: glow 1s infinite;
-            box-shadow: 0 0 var(--g) calc(var(--g)*0.5) var(--c);
+            animation: goldGlow 2s ease-in-out infinite;
         }
 
         .fill {
             height: 100%;
             width: 0;
-            background: linear-gradient(90deg, var(--c) 0%, var(--c) 100%);
+            background: linear-gradient(90deg,
+                rgba(255, 215, 0, 0.9) 0%,
+                rgba(255, 223, 0, 0.95) 50%,
+                rgba(255, 215, 0, 0.9) 100%);
             transition: width 0.35s ease;
             position: relative;
             overflow: hidden;
@@ -103,31 +115,42 @@
             animation: flash 0.5s ease-out;
         }
 
-        /* Scalable glow pulse */
-        @keyframes glow {
+        /* Gold pulsating glow animation */
+        @keyframes goldGlow {
             0%, 100% {
                 box-shadow:
-                    0 0 0 0 var(--c),
-                    0 0 var(--g) calc(var(--g)*0.5) var(--c);
+                    /* Inner gold border */
+                    inset 0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                    /* Outer gold border */
+                    0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                    /* Pulsating glow - soft */
+                    0 0 var(--g) calc(var(--g)*0.5) var(--gold),
+                    0 0 calc(var(--g)*1.5) calc(var(--g)*0.8) var(--gold);
             }
-            70% {
+            50% {
                 box-shadow:
-                    0 0 var(--g) calc(var(--g)*0.8) transparent,
-                    0 0 calc(var(--g)*1.5) calc(var(--g)*1) var(--c);
+                    /* Inner gold border */
+                    inset 0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                    /* Outer gold border */
+                    0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                    /* Pulsating glow - intense */
+                    0 0 calc(var(--g)*1.2) calc(var(--g)*0.8) var(--gold),
+                    0 0 calc(var(--g)*2) calc(var(--g)*1.2) var(--gold),
+                    0 0 calc(var(--g)*2.5) calc(var(--g)*1.5) rgba(255, 215, 0, 0.4);
             }
         }
 
-        /* Particle effects */
+        /* Gold particle effects */
         .particle {
             position: absolute;
-            width: 10px;
-            height: 10px;
-            background: var(--c);
+            width: 12px;
+            height: 12px;
+            background: var(--gold);
             border-radius: 50%;
             pointer-events: none;
             animation: rise 2s ease-out forwards;
-            opacity: 0.8;
-            box-shadow: 0 0 10px var(--c);
+            opacity: 0.9;
+            box-shadow: 0 0 15px var(--gold), 0 0 25px rgba(255, 215, 0, 0.5);
         }
 
         @keyframes rise {
@@ -141,27 +164,31 @@
             }
         }
 
-        /* Info panel styles */
+        /* Info panel styles - Enterprise Edition */
         .info-panel {
             position: fixed;
             top: 20px;
             right: 20px;
-            background: rgba(15, 23, 42, 0.95);
+            background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--white);
+            box-shadow:
+                inset 0 0 0 1px var(--gold),
+                0 0 0 1px var(--gold),
+                0 0 20px rgba(255, 215, 0, 0.3);
             border-radius: 12px;
             padding: 16px 20px;
             color: white;
             font-size: 14px;
             max-width: 300px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
         }
 
         .info-panel h3 {
             font-weight: 700;
             font-size: 16px;
             margin-bottom: 8px;
-            color: var(--c);
+            color: var(--gold);
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
 
         .info-item {
