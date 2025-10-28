@@ -5,11 +5,6 @@ const pass = q.get('pw') || '';
 
 const fill = document.getElementById('fill');
 const num = document.getElementById('num');
-const infoPanel = document.getElementById('infoPanel');
-const groupName = document.getElementById('groupName');
-const targetValue = document.getElementById('targetValue');
-const progressValue = document.getElementById('progressValue');
-const remainingValue = document.getElementById('remainingValue');
 
 let target = 1;
 let last = 0;
@@ -73,13 +68,6 @@ sock.on('update', p => {
     fill.style.width = pct + '%';
     num.textContent = diamonds.toLocaleString();
 
-    // Update info panel
-    groupName.textContent = g.name;
-    targetValue.textContent = target.toLocaleString();
-    progressValue.textContent = pct.toFixed(1) + '%';
-    remainingValue.textContent = Math.max(0, target - diamonds).toLocaleString();
-    infoPanel.style.display = 'block';
-
     /* flash when value rises */
     if (diamonds > last) {
         num.classList.remove('flash');
@@ -110,12 +98,3 @@ function createParticles() {
         setTimeout(() => particle.remove(), 2000);
     }
 }
-
-// Toggle info panel visibility on click
-document.addEventListener('click', () => {
-    if (infoPanel.style.display === 'none') {
-        infoPanel.style.display = 'block';
-    } else {
-        infoPanel.style.display = 'none';
-    }
-});
