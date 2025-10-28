@@ -13,10 +13,12 @@
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        /* Custom bar styles - Enterprise Edition */
+        /* Custom bar styles - Enterprise Edition with Multiple Themes */
         :root {
-            --gold: #FFD700;
-            --white: #FFFFFF;
+            /* Theme colors - set dynamically via overlay.js */
+            --primary: #FFD700;    /* Primary color for border and glow */
+            --secondary: #FFFFFF;  /* Secondary color (white for border) */
+            --fill: rgba(255, 215, 0, 0.9);  /* Fill bar color */
             --g: 32px;
         }
 
@@ -27,28 +29,25 @@
             height: 40vh;
             position: relative;
             background: transparent;
-            /* Double border effect: outer white, inner gold */
-            border: calc(max(6px, 3vh)) solid var(--white);
+            /* Dynamic border effect */
+            border: calc(max(6px, 3vh)) solid var(--secondary);
             box-shadow:
-                /* Inner gold border */
-                inset 0 0 0 calc(max(3px, 1.5vh)) var(--gold),
-                /* Outer gold border */
-                0 0 0 calc(max(3px, 1.5vh)) var(--gold),
-                /* Gold pulsating glow */
-                0 0 var(--g) calc(var(--g)*0.5) var(--gold),
-                0 0 calc(var(--g)*1.5) calc(var(--g)*0.8) var(--gold);
+                /* Inner primary border */
+                inset 0 0 0 calc(max(3px, 1.5vh)) var(--primary),
+                /* Outer primary border */
+                0 0 0 calc(max(3px, 1.5vh)) var(--primary),
+                /* Pulsating glow */
+                0 0 var(--g) calc(var(--g)*0.5) var(--primary),
+                0 0 calc(var(--g)*1.5) calc(var(--g)*0.8) var(--primary);
             border-radius: 20px;
             overflow: hidden;
-            animation: goldGlow 2s ease-in-out infinite;
+            animation: themeGlow 2s ease-in-out infinite;
         }
 
         .fill {
             height: 100%;
             width: 0;
-            background: linear-gradient(90deg,
-                rgba(255, 215, 0, 0.9) 0%,
-                rgba(255, 223, 0, 0.95) 50%,
-                rgba(255, 215, 0, 0.9) 100%);
+            background: var(--fill);
             transition: width 0.35s ease;
             position: relative;
             overflow: hidden;
@@ -115,42 +114,42 @@
             animation: flash 0.5s ease-out;
         }
 
-        /* Gold pulsating glow animation */
-        @keyframes goldGlow {
+        /* Dynamic theme pulsating glow animation */
+        @keyframes themeGlow {
             0%, 100% {
                 box-shadow:
-                    /* Inner gold border */
-                    inset 0 0 0 calc(max(3px, 1.5vh)) var(--gold),
-                    /* Outer gold border */
-                    0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                    /* Inner primary border */
+                    inset 0 0 0 calc(max(3px, 1.5vh)) var(--primary),
+                    /* Outer primary border */
+                    0 0 0 calc(max(3px, 1.5vh)) var(--primary),
                     /* Pulsating glow - soft */
-                    0 0 var(--g) calc(var(--g)*0.5) var(--gold),
-                    0 0 calc(var(--g)*1.5) calc(var(--g)*0.8) var(--gold);
+                    0 0 var(--g) calc(var(--g)*0.5) var(--primary),
+                    0 0 calc(var(--g)*1.5) calc(var(--g)*0.8) var(--primary);
             }
             50% {
                 box-shadow:
-                    /* Inner gold border */
-                    inset 0 0 0 calc(max(3px, 1.5vh)) var(--gold),
-                    /* Outer gold border */
-                    0 0 0 calc(max(3px, 1.5vh)) var(--gold),
+                    /* Inner primary border */
+                    inset 0 0 0 calc(max(3px, 1.5vh)) var(--primary),
+                    /* Outer primary border */
+                    0 0 0 calc(max(3px, 1.5vh)) var(--primary),
                     /* Pulsating glow - intense */
-                    0 0 calc(var(--g)*1.2) calc(var(--g)*0.8) var(--gold),
-                    0 0 calc(var(--g)*2) calc(var(--g)*1.2) var(--gold),
-                    0 0 calc(var(--g)*2.5) calc(var(--g)*1.5) rgba(255, 215, 0, 0.4);
+                    0 0 calc(var(--g)*1.2) calc(var(--g)*0.8) var(--primary),
+                    0 0 calc(var(--g)*2) calc(var(--g)*1.2) var(--primary),
+                    0 0 calc(var(--g)*2.5) calc(var(--g)*1.5) var(--primary);
             }
         }
 
-        /* Gold particle effects */
+        /* Dynamic theme particle effects */
         .particle {
             position: absolute;
             width: 12px;
             height: 12px;
-            background: var(--gold);
+            background: var(--primary);
             border-radius: 50%;
             pointer-events: none;
             animation: rise 2s ease-out forwards;
             opacity: 0.9;
-            box-shadow: 0 0 15px var(--gold), 0 0 25px rgba(255, 215, 0, 0.5);
+            box-shadow: 0 0 15px var(--primary), 0 0 25px var(--primary);
         }
 
         @keyframes rise {
@@ -164,18 +163,18 @@
             }
         }
 
-        /* Info panel styles - Enterprise Edition */
+        /* Info panel styles - Enterprise Edition with Dynamic Theme */
         .info-panel {
             position: fixed;
             top: 20px;
             right: 20px;
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(10px);
-            border: 2px solid var(--white);
+            border: 2px solid var(--secondary);
             box-shadow:
-                inset 0 0 0 1px var(--gold),
-                0 0 0 1px var(--gold),
-                0 0 20px rgba(255, 215, 0, 0.3);
+                inset 0 0 0 1px var(--primary),
+                0 0 0 1px var(--primary),
+                0 0 20px var(--primary);
             border-radius: 12px;
             padding: 16px 20px;
             color: white;
@@ -187,8 +186,8 @@
             font-weight: 700;
             font-size: 16px;
             margin-bottom: 8px;
-            color: var(--gold);
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+            color: var(--primary);
+            text-shadow: 0 0 10px var(--primary);
         }
 
         .info-item {

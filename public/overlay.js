@@ -21,6 +21,40 @@ function setGlow() {
 setGlow();
 window.addEventListener('resize', setGlow);
 
+// Overlay theme definitions
+const OVERLAY_THEMES = {
+    gold: {
+        name: 'Gold Premium',
+        primary: '#FFD700',
+        secondary: '#FFFFFF',
+        fill: 'linear-gradient(90deg, rgba(255, 215, 0, 0.9) 0%, rgba(255, 223, 0, 0.95) 50%, rgba(255, 215, 0, 0.9) 100%)'
+    },
+    white: {
+        name: 'White Elegant',
+        primary: '#FFFFFF',
+        secondary: '#FFFFFF',
+        fill: 'linear-gradient(90deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0.9) 100%)'
+    },
+    cyan: {
+        name: 'Classic Cyan',
+        primary: '#00CCFF',
+        secondary: '#FFFFFF',
+        fill: 'linear-gradient(90deg, rgba(0, 204, 255, 0.9) 0%, rgba(0, 204, 255, 0.95) 50%, rgba(0, 204, 255, 0.9) 100%)'
+    }
+};
+
+// Apply overlay theme
+function applyOverlayTheme(themeName) {
+    const theme = OVERLAY_THEMES[themeName] || OVERLAY_THEMES.gold;
+
+    const root = document.documentElement;
+    root.style.setProperty('--primary', theme.primary);
+    root.style.setProperty('--secondary', theme.secondary);
+    root.style.setProperty('--fill', theme.fill);
+
+    console.log(`📐 Applied overlay theme: ${theme.name}`);
+}
+
 const sock = io();
 
 sock.on('update', p => {
@@ -29,7 +63,9 @@ sock.on('update', p => {
     const g = p.groups[groupId];
     if (!g) return;                        // unknown group
 
-    // Enterprise Edition: Fixed gold/white theme (no dynamic colors)
+    // Apply overlay theme from group settings
+    const overlayStyle = g.overlayStyle || 'gold'; // Default to gold theme
+    applyOverlayTheme(overlayStyle);
 
     const diamonds = (p.counters[groupId] || { diamonds: 0 }).diamonds;
     const pct = Math.min(100, (diamonds / target) * 100);

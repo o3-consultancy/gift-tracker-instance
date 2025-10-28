@@ -80,14 +80,31 @@ btnNew.onclick = () => {
     showModal({
         title: 'Create New Group',
         content: `
-            <label class="block text-sm font-medium text-gray-300 mb-2">Group Name</label>
-            <input
-                type="text"
-                id="groupNameInput"
-                class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                placeholder="Enter group name"
-                autofocus
-            >
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Group Name</label>
+                    <input
+                        type="text"
+                        id="groupNameInput"
+                        class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                        placeholder="Enter group name"
+                        autofocus
+                    >
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Overlay Style</label>
+                    <select
+                        id="overlayStyleInput"
+                        class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                    >
+                        <option value="gold">✨ Gold Premium</option>
+                        <option value="white">⚪ White Elegant</option>
+                        <option value="cyan">🔵 Classic Cyan</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Choose the visual theme for your stream overlay</p>
+                </div>
+            </div>
         `,
         actions: [
             {
@@ -100,14 +117,21 @@ btnNew.onclick = () => {
                 class: 'px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg transition-all',
                 onClick: () => {
                     const name = document.getElementById('groupNameInput').value.trim();
+                    const overlayStyle = document.getElementById('overlayStyleInput').value;
+
                     if (!name) {
                         showToast('Please enter a group name', 'error');
                         return;
                     }
                     const id = 'g' + Date.now().toString(36);
-                    groups[id] = { name, giftIds: [], color: randomColor() };
+                    groups[id] = {
+                        name,
+                        giftIds: [],
+                        color: randomColor(),
+                        overlayStyle: overlayStyle || 'gold' // Default to gold
+                    };
                     saveGroups();
-                    showToast(`Group "${name}" created`, 'success');
+                    showToast(`Group "${name}" created with ${overlayStyle} overlay`, 'success');
                     closeModal();
                 }
             }
@@ -510,18 +534,36 @@ function drawGroups() {
                     window.open(`/overlay.html?id=${gid}`, '_blank', 'width=1200,height=600');
                 } else if (action === 'edit') {
                     const current = counters[gid]?.diamonds || 0;
+                    const currentOverlayStyle = groups[gid]?.overlayStyle || 'gold';
                     showModal({
-                        title: `Edit Counter - ${groups[gid].name}`,
+                        title: `Edit Group - ${groups[gid].name}`,
                         content: `
-                            <label class="block text-sm font-medium text-gray-300 mb-2">Diamond Count</label>
-                            <input
-                                type="number"
-                                id="counterInput"
-                                class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                value="${current}"
-                                min="0"
-                                autofocus
-                            >
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Diamond Count</label>
+                                    <input
+                                        type="number"
+                                        id="counterInput"
+                                        class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                                        value="${current}"
+                                        min="0"
+                                        autofocus
+                                    >
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-300 mb-2">Overlay Style</label>
+                                    <select
+                                        id="overlayStyleEditInput"
+                                        class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                                    >
+                                        <option value="gold" ${currentOverlayStyle === 'gold' ? 'selected' : ''}>✨ Gold Premium</option>
+                                        <option value="white" ${currentOverlayStyle === 'white' ? 'selected' : ''}>⚪ White Elegant</option>
+                                        <option value="cyan" ${currentOverlayStyle === 'cyan' ? 'selected' : ''}>🔵 Classic Cyan</option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-gray-500">Changes apply to the overlay window</p>
+                                </div>
+                            </div>
                         `,
                         actions: [
                             {
@@ -534,13 +576,20 @@ function drawGroups() {
                                 class: 'px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-lg transition-all',
                                 onClick: () => {
                                     const v = document.getElementById('counterInput').value;
+                                    const newOverlayStyle = document.getElementById('overlayStyleEditInput').value;
+
+                                    // Update overlay style in groups object
+                                    groups[gid].overlayStyle = newOverlayStyle;
+                                    saveGroups();
+
+                                    // Update counter
                                     fetch('/api/counter', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
                                         body: JSON.stringify({ groupId: gid, diamonds: v })
                                     })
                                         .then(() => {
-                                            showToast('Counter updated', 'success');
+                                            showToast('Group updated successfully', 'success');
                                             closeModal();
                                         })
                                         .catch(() => showToast('Failed to update counter', 'error'));
