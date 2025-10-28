@@ -98,9 +98,11 @@ btnNew.onclick = () => {
                         id="overlayStyleInput"
                         class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                     >
-                        <option value="gold">✨ Gold Premium</option>
-                        <option value="white">⚪ White Elegant</option>
-                        <option value="cyan">🔵 Classic Cyan</option>
+                        <option value="diamond">💎 Diamond Luxury - Purple/Pink shimmer</option>
+                        <option value="fire">🔥 Fire Blaze - Orange/Red intensity</option>
+                        <option value="ocean">🌊 Ocean Wave - Blue/Teal depth</option>
+                        <option value="neon">⚡ Neon Pulse - Electric green/cyan</option>
+                        <option value="sunset">🌟 Sunset Glow - Gold/Orange warmth</option>
                     </select>
                     <p class="mt-1 text-xs text-gray-500">Choose the visual theme for your stream overlay</p>
                 </div>
@@ -128,7 +130,7 @@ btnNew.onclick = () => {
                         name,
                         giftIds: [],
                         color: randomColor(),
-                        overlayStyle: overlayStyle || 'gold' // Default to gold
+                        overlayStyle: overlayStyle || 'diamond' // Default to diamond
                     };
                     saveGroups();
                     showToast(`Group "${name}" created with ${overlayStyle} overlay`, 'success');
@@ -534,7 +536,7 @@ function drawGroups() {
                     window.open(`/overlay.html?id=${gid}`, '_blank', 'width=1200,height=600');
                 } else if (action === 'edit') {
                     const current = counters[gid]?.diamonds || 0;
-                    const currentOverlayStyle = groups[gid]?.overlayStyle || 'gold';
+                    const currentOverlayStyle = groups[gid]?.overlayStyle || 'diamond';
                     showModal({
                         title: `Edit Group - ${groups[gid].name}`,
                         content: `
@@ -557,9 +559,11 @@ function drawGroups() {
                                         id="overlayStyleEditInput"
                                         class="w-full px-4 py-2 bg-dark-900 border border-dark-600 rounded-lg text-white focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                                     >
-                                        <option value="gold" ${currentOverlayStyle === 'gold' ? 'selected' : ''}>✨ Gold Premium</option>
-                                        <option value="white" ${currentOverlayStyle === 'white' ? 'selected' : ''}>⚪ White Elegant</option>
-                                        <option value="cyan" ${currentOverlayStyle === 'cyan' ? 'selected' : ''}>🔵 Classic Cyan</option>
+                                        <option value="diamond" ${currentOverlayStyle === 'diamond' ? 'selected' : ''}>💎 Diamond Luxury - Purple/Pink shimmer</option>
+                                        <option value="fire" ${currentOverlayStyle === 'fire' ? 'selected' : ''}>🔥 Fire Blaze - Orange/Red intensity</option>
+                                        <option value="ocean" ${currentOverlayStyle === 'ocean' ? 'selected' : ''}>🌊 Ocean Wave - Blue/Teal depth</option>
+                                        <option value="neon" ${currentOverlayStyle === 'neon' ? 'selected' : ''}>⚡ Neon Pulse - Electric green/cyan</option>
+                                        <option value="sunset" ${currentOverlayStyle === 'sunset' ? 'selected' : ''}>🌟 Sunset Glow - Gold/Orange warmth</option>
                                     </select>
                                     <p class="mt-1 text-xs text-gray-500">Changes apply to the overlay window</p>
                                 </div>

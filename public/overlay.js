@@ -16,31 +16,48 @@ function setGlow() {
 setGlow();
 window.addEventListener('resize', setGlow);
 
-// Overlay theme definitions
+// Overlay theme definitions - Professional Tier
 const OVERLAY_THEMES = {
-    gold: {
-        name: 'Gold Premium',
-        primary: '#FFD700',
-        secondary: '#FFFFFF',
-        fill: 'transparent'
+    diamond: {
+        name: 'Diamond Luxury',
+        primary: '#DA70D6',      // Orchid purple
+        secondary: '#FF69B4',    // Hot pink
+        fill: 'transparent',
+        description: 'Purple/pink gradient with luxurious shimmer effect'
     },
-    white: {
-        name: 'White Elegant',
-        primary: '#FFFFFF',
-        secondary: '#FFFFFF',
-        fill: 'transparent'
+    fire: {
+        name: 'Fire Blaze',
+        primary: '#FF4500',      // Orange red
+        secondary: '#FFD700',    // Gold
+        fill: 'transparent',
+        description: 'Orange/red gradient with intense energy'
     },
-    cyan: {
-        name: 'Classic Cyan',
-        primary: '#00CCFF',
-        secondary: '#FFFFFF',
-        fill: 'transparent'
+    ocean: {
+        name: 'Ocean Wave',
+        primary: '#00CED1',      // Dark turquoise
+        secondary: '#4169E1',    // Royal blue
+        fill: 'transparent',
+        description: 'Blue/teal gradient with calming depth'
+    },
+    neon: {
+        name: 'Neon Pulse',
+        primary: '#00FF00',      // Lime green
+        secondary: '#00FFFF',    // Cyan
+        fill: 'transparent',
+        description: 'Electric green/cyan with vibrant energy'
+    },
+    sunset: {
+        name: 'Sunset Glow',
+        primary: '#FFD700',      // Gold
+        secondary: '#FF8C00',    // Dark orange
+        fill: 'transparent',
+        description: 'Gold/orange gradient with warm glow'
     }
 };
 
 // Apply overlay theme
 function applyOverlayTheme(themeName) {
-    const theme = OVERLAY_THEMES[themeName] || OVERLAY_THEMES.gold;
+    const theme = OVERLAY_THEMES[themeName] || OVERLAY_THEMES.diamond;
 
     const root = document.documentElement;
     root.style.setProperty('--primary', theme.primary);
@@ -59,7 +76,7 @@ sock.on('update', p => {
     if (!g) return;                        // unknown group
 
     // Apply overlay theme from group settings
-    const overlayStyle = g.overlayStyle || 'gold'; // Default to gold theme
+    const overlayStyle = g.overlayStyle || 'diamond'; // Default to diamond theme
     applyOverlayTheme(overlayStyle);
 
     const diamonds = (p.counters[groupId] || { diamonds: 0 }).diamonds;
