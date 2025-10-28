@@ -27,19 +27,19 @@ const OVERLAY_THEMES = {
         name: 'Gold Premium',
         primary: '#FFD700',
         secondary: '#FFFFFF',
-        fill: 'linear-gradient(90deg, rgba(255, 215, 0, 0.9) 0%, rgba(255, 223, 0, 0.95) 50%, rgba(255, 215, 0, 0.9) 100%)'
+        fill: 'transparent'
     },
     white: {
         name: 'White Elegant',
         primary: '#FFFFFF',
         secondary: '#FFFFFF',
-        fill: 'linear-gradient(90deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.95) 50%, rgba(255, 255, 255, 0.9) 100%)'
+        fill: 'transparent'
     },
     cyan: {
         name: 'Classic Cyan',
         primary: '#00CCFF',
         secondary: '#FFFFFF',
-        fill: 'linear-gradient(90deg, rgba(0, 204, 255, 0.9) 0%, rgba(0, 204, 255, 0.95) 50%, rgba(0, 204, 255, 0.9) 100%)'
+        fill: 'transparent'
     }
 };
 
