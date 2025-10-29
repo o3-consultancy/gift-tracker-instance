@@ -20,6 +20,9 @@ ACCOUNT_ID=${ACCOUNT_ID}
 # ─── TikTok Configuration ───────────────────────────────────
 TIKTOK_USERNAME=${TIKTOK_USERNAME}
 
+# ─── Euler Stream API (Rate Limit Mitigation) ───────────────
+EULER_API_KEY=${EULER_API_KEY:-euler_NzEyNDZkNzhmNDliNTc3M2FkMmNkYjM0ZDljMmVlMjFhMDNjNDcwM2MwMzk3NmUwYzE4YTdl}
+
 # ─── Server Configuration ───────────────────────────────────
 PORT=${PORT:-3000}
 NODE_ENV=${NODE_ENV:-production}
