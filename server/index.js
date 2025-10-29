@@ -4,7 +4,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-import { WebcastPushConnection } from 'tiktok-live-connector';
+import { WebcastPushConnection, SignConfig } from 'tiktok-live-connector';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -19,7 +19,19 @@ const BACKEND_API_URL = process.env.BACKEND_API_URL;
 const API_KEY = process.env.API_KEY;
 const ACCOUNT_ID = process.env.ACCOUNT_ID;
 const USERNAME = process.env.TIKTOK_USERNAME;
+const EULER_API_KEY = process.env.EULER_API_KEY;
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
+
+// Configure Euler Stream API if key is provided
+if (EULER_API_KEY) {
+  SignConfig.apiKey = EULER_API_KEY;
+  SignConfig.signServerUrl = 'https://tiktok.eulerstream.com';
+  console.log('✅ Euler Stream API configured for rate limit mitigation');
+  console.log(`   Sign Server: ${SignConfig.signServerUrl}`);
+} else {
+  console.log('⚠️  No Euler Stream API key - using free tier (rate limits may apply)');
+  console.log('   Using default sign server (rate limits may apply)');
+}
 
 // Validate required environment variables
 if (!API_KEY || !ACCOUNT_ID) {
@@ -49,14 +61,8 @@ let totalGifts = 0;
 let totalDiamonds = 0;
 let giftCatalog = [];
 
-/* ── Auto-reconnection state ─────────────────── */
-let reconnectAttempts = 0;
-let reconnectTimer = null;
-let isManualDisconnect = false;
-let maxAttemptsReached = false;       // Permanent flag to stop auto-reconnect after max attempts
-const MAX_RECONNECT_ATTEMPTS = 5;     // Reduced to 5 attempts to prevent log flooding
-const BASE_RECONNECT_DELAY = 2000;    // 2 seconds
-const MAX_RECONNECT_DELAY = 60000;    // 60 seconds
+/* ── Manual connection control (NO auto-reconnect) ─────────────────── */
+let isManualDisconnect = false;  // Track if user manually disconnected
 
 /* ── Error logging system ─────────────────── */
 const errorLog = [];
@@ -68,8 +74,7 @@ function logError(category, message, details = null) {
     timestamp,
     category,
     message,
-    details,
-    attempt: reconnectAttempts
+    details
   };
 
   errorLog.unshift(errorEntry);
@@ -430,15 +435,15 @@ function startHealthMonitoring() {
         connectionHealth.totalFailures++;
         connectionHealth.isHealthy = false;
 
-        // If too many failures, trigger reconnect
+        // If too many failures, disconnect and wait for user to reconnect
         if (connectionHealth.consecutiveFailures >= 3) {
-          console.error('❌ Health check failed multiple times - triggering reconnect');
-          logError('HEALTH', 'Connection health check failed', {
+          console.error('❌ Health check failed multiple times - disconnecting');
+          logError('HEALTH', 'Connection health check failed - Manual reconnection required', {
             consecutiveFailures: connectionHealth.consecutiveFailures,
             timeSinceActivity
           });
           await disconnectTikTok();
-          await connectTikTok(true); // Pass true to indicate auto-reconnect
+          console.log('ℹ️  Please click Connect to reconnect');
         }
       } else {
         connectionHealth.consecutiveFailures = 0;
@@ -482,84 +487,8 @@ function recordActivity() {
 /* ── TikTok connector (created on demand) ─────────────────────────── */
 let tiktok = null;
 
-/* ── Auto-reconnection with exponential backoff ─────────────────── */
-function calculateReconnectDelay() {
-  // Exponential backoff: 2s, 4s, 8s, 16s, 32s, 60s (max)
-  const delay = Math.min(
-    BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts),
-    MAX_RECONNECT_DELAY
-  );
-  return delay;
-}
-
-async function attemptReconnect() {
-  if (isManualDisconnect) {
-    console.log('⏸️  Manual disconnect - skipping auto-reconnect');
-    return;
-  }
-
-  // Check if max attempts was already reached in a previous cycle
-  if (maxAttemptsReached) {
-    console.log('⏸️  Max attempts already reached - auto-reconnect disabled');
-    console.log('ℹ️  Please manually reconnect when the stream is live');
-    return;
-  }
-
-  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.log(`❌ Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached - stopping reconnection attempts`);
-    console.log('ℹ️  Please check if the stream is live and reconnect manually when ready');
-    logError('RECONNECT', `Max reconnection attempts (${MAX_RECONNECT_ATTEMPTS}) reached`, {
-      attempts: reconnectAttempts,
-      message: 'Auto-reconnection stopped permanently. Manual reconnection required.'
-    });
-
-    // Set permanent flag to prevent any future auto-reconnect attempts
-    maxAttemptsReached = true;
-    isManualDisconnect = true;
-    liveStatus = 'OFFLINE';
-    broadcast();
-
-    return;
-  }
-
-  reconnectAttempts++;
-  const delay = calculateReconnectDelay();
-
-  console.log(`🔄 Reconnection attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay / 1000}s...`);
-  liveStatus = 'RECONNECTING';
-  broadcast();
-
-  reconnectTimer = setTimeout(async () => {
-    try {
-      console.log(`⚡ Attempting to reconnect (attempt ${reconnectAttempts})...`);
-      await connectTikTok(true); // Pass true to indicate auto-reconnect
-
-      if (liveStatus === 'ONLINE') {
-        console.log('✅ Reconnection successful!');
-        reconnectAttempts = 0; // Reset counter on success
-      }
-    } catch (err) {
-      console.error(`❌ Reconnection attempt ${reconnectAttempts} failed:`, err.message);
-      logError('RECONNECT', `Attempt ${reconnectAttempts} failed`, err.message);
-
-      // Only try again if we haven't reached max attempts
-      if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-        attemptReconnect(); // Try again
-      } else {
-        // Max attempts reached, stop trying
-        attemptReconnect(); // This will hit the max check and stop
-      }
-    }
-  }, delay);
-}
-
-function cancelReconnect() {
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-  reconnectAttempts = 0;
-}
+/* ── NO AUTO-RECONNECT - User must manually reconnect ─────────────────── */
+// All auto-reconnection logic removed - connection requires manual user action
 
 /* ── Gift combo tracking system ─────────────────────────────────── */
 const giftComboTracker = new Map();
@@ -636,20 +565,18 @@ function processGiftCount(data, delta) {
   debugLog(`Gift processed in ${processingTime}ms`);
 }
 
-async function connectTikTok(isAutoReconnect = false) {
-  if (liveStatus === 'CONNECTING' || liveStatus === 'ONLINE') return;
-
-  // Cancel any pending reconnect timers
-  if (!isAutoReconnect) {
-    // Only reset counter and cancel reconnect on manual connect
-    cancelReconnect();
-    reconnectAttempts = 0;
-    maxAttemptsReached = false; // Reset the permanent flag on manual connect
+async function connectTikTok() {
+  // Prevent connecting if already connecting or connected
+  if (liveStatus === 'CONNECTING' || liveStatus === 'ONLINE') {
+    console.log('⚠️  Already connecting or connected');
+    return;
   }
 
+  // Reset manual disconnect flag - user is manually connecting
   isManualDisconnect = false;
 
-  liveStatus = 'CONNECTING'; broadcast();
+  liveStatus = 'CONNECTING';
+  broadcast();
 
   try {
     console.log(`🔗 Connecting to @${USERNAME}'s TikTok Live...`);
@@ -658,8 +585,8 @@ async function connectTikTok(isAutoReconnect = false) {
       enableExtendedGiftInfo: true,
       processInitialData: false,        // Skip old messages
       fetchRoomInfoOnConnect: true,     // Get room data on connect
-      requestPollingIntervalMs: 1000,   // Faster updates (1 second)
-      signServerUrl: 'https://sign.furetto.dev/api/sign'
+      requestPollingIntervalMs: 1000    // Faster updates (1 second)
+      // signServerUrl is configured globally via SignConfig
     });
 
     /* ── IMPROVED: Gift event handler with combo tracking ── */
@@ -698,21 +625,20 @@ async function connectTikTok(isAutoReconnect = false) {
     });
 
     /* ── ENHANCED: Connection state event listeners with auto-reconnect ── */
+    /* ── Connection Events - NO AUTO-RECONNECT ── */
     tiktok.on('connected', () => {
       trackEvent('connected');
       console.log('✅ Successfully connected to TikTok Live');
       liveStatus = 'ONLINE';
-      reconnectAttempts = 0; // Reset on successful connection
-      maxAttemptsReached = false; // Reset permanent flag on successful connection
       recordActivity();
-      startHealthMonitoring(); // Start health checks
+      startHealthMonitoring();
       broadcast();
     });
 
     tiktok.on('disconnected', () => {
       trackEvent('disconnected');
       console.log('⚠️  Disconnected from TikTok Live');
-      logError('CONNECTION', 'Disconnected from TikTok Live');
+      logError('CONNECTION', 'Disconnected from TikTok Live - Manual reconnection required');
       diagnostics.totalErrors++;
 
       // Stop health monitoring
@@ -724,38 +650,28 @@ async function connectTikTok(isAutoReconnect = false) {
       });
       giftComboTracker.clear();
 
-      liveStatus = 'DISCONNECTED';
+      // Set status to OFFLINE and wait for user to reconnect
+      liveStatus = 'OFFLINE';
       broadcast();
-
-      // Attempt auto-reconnect unless it was manual
-      if (!isManualDisconnect) {
-        console.log('🔄 Connection lost - initiating auto-reconnect...');
-        diagnostics.totalReconnections++;
-        attemptReconnect();
-      }
+      console.log('ℹ️  Please click Connect to reconnect when stream is live');
     });
 
     tiktok.on('error', (err) => {
       trackEvent('error');
       const errorMsg = err.message || err.toString();
       console.error('❌ TikTok connection error:', errorMsg);
-      logError('CONNECTION', 'Connection error occurred', errorMsg);
+      logError('CONNECTION', 'Connection error - Manual reconnection required', errorMsg);
       diagnostics.totalErrors++;
 
+      // Set status to OFFLINE and wait for user to reconnect
       liveStatus = 'OFFLINE';
       broadcast();
-
-      // Attempt reconnect on error
-      if (!isManualDisconnect) {
-        console.log('🔄 Error detected - initiating auto-reconnect...');
-        diagnostics.totalReconnections++;
-        attemptReconnect();
-      }
+      console.log('ℹ️  Connection error - Please click Connect to try again');
     });
 
     tiktok.on('streamEnd', async () => {
       trackEvent('streamEnd');
-      console.log('📴 Stream ended by host - disconnecting session');
+      console.log('📴 Stream ended by host');
       logError('STREAM', 'Stream ended by host', { endTime: new Date().toISOString() });
 
       // Stop health monitoring
@@ -767,11 +683,7 @@ async function connectTikTok(isAutoReconnect = false) {
       });
       giftComboTracker.clear();
 
-      // Mark as manual disconnect to prevent auto-reconnect
-      isManualDisconnect = true;
-      cancelReconnect();
-
-      // Disconnect the session completely
+      // Disconnect the session
       if (tiktok) {
         try {
           await tiktok.disconnect();
@@ -781,14 +693,9 @@ async function connectTikTok(isAutoReconnect = false) {
         tiktok = null;
       }
 
-      liveStatus = 'DISCONNECTED';
+      liveStatus = 'OFFLINE';
       broadcast();
-      console.log('✅ Session disconnected - stream is offline');
-
-      // Reset manual disconnect flag after a delay
-      setTimeout(() => {
-        isManualDisconnect = false;
-      }, 5000);
+      console.log('ℹ️  Stream offline - Click Connect when stream is live again');
     });
 
     /* ── NEW: Member join event for unique visitors ── */
@@ -830,7 +737,7 @@ async function connectTikTok(isAutoReconnect = false) {
     await tiktok.connect();              // may throw if stream offline
     liveStatus = 'ONLINE';
 
-    /* ── NEW: fetch full gift catalogue after successful connect ── */
+    /* ── Fetch full gift catalogue after successful connect ── */
     giftCatalog = (await tiktok.fetchAvailableGifts().catch(() => []))
       .map(g => ({
         id: g.id,
@@ -842,14 +749,9 @@ async function connectTikTok(isAutoReconnect = false) {
   } catch (err) {
     const errorMsg = err.message || err.toString();
     console.error('❌ Connect failed:', errorMsg);
-    logError('CONNECTION', 'Initial connection failed', errorMsg);
+    logError('CONNECTION', 'Initial connection failed - Manual retry required', errorMsg);
     liveStatus = 'OFFLINE';
-
-    // Attempt reconnect on initial connection failure
-    if (!isManualDisconnect) {
-      console.log('🔄 Initial connection failed - will retry...');
-      attemptReconnect();
-    }
+    console.log('ℹ️  Connection failed - Please click Connect to try again');
   }
   broadcast();
 }
@@ -857,9 +759,8 @@ async function connectTikTok(isAutoReconnect = false) {
 async function disconnectTikTok() {
   console.log('🔌 Manual disconnect requested...');
 
-  // Mark as manual disconnect to prevent auto-reconnect
+  // Mark as manual disconnect
   isManualDisconnect = true;
-  cancelReconnect();
 
   if (tiktok) {
     try {
@@ -1000,10 +901,7 @@ app.post('/api/reset', (_, res) => {
 app.get('/api/errors', (_, res) => {
   res.json({
     errors: errorLog,
-    count: errorLog.length,
-    reconnectAttempts,
-    maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
-    isReconnecting: liveStatus === 'RECONNECTING'
+    count: errorLog.length
   });
 });
 
@@ -1071,10 +969,6 @@ function buildPayload() {
       uniqueJoins: uniques.size,
       totalGifts,
       totalDiamonds,
-      // Connection health information
-      reconnectAttempts,
-      maxReconnectAttempts: MAX_RECONNECT_ATTEMPTS,
-      isReconnecting: liveStatus === 'RECONNECTING',
       errorCount: errorLog.length,
       lastError: errorLog.length > 0 ? errorLog[0] : null
     }
