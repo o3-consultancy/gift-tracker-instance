@@ -498,24 +498,38 @@ function trackGiftCombo(userId, giftId, data) {
 
   // Clear existing timeout if any
   if (giftComboTracker.has(key)) {
-    clearTimeout(giftComboTracker.get(key).timeout);
+    const existing = giftComboTracker.get(key);
+    clearTimeout(existing.timeout);
   }
 
   // Use configurable timeout (fallback to 5000ms if not set)
   const timeoutDuration = cfg.comboTimeout || 5000;
 
+  // Clone the current repeatCount to avoid closure issues
+  const currentRepeatCount = data.repeatCount;
+  const giftName = data.giftName;
+
   // Create timeout fallback to count gifts even if repeatEnd never comes
   const timeout = setTimeout(() => {
-    console.log(`⚠️  Combo timeout (${timeoutDuration}ms) for gift ${data.giftName} - counting ${data.repeatCount} gifts`);
-    diagnostics.totalComboTimeouts++;
-    processGiftCount(data, data.repeatCount);
-    giftComboTracker.delete(key);
+    const tracker = giftComboTracker.get(key);
+
+    // Only process if this combo hasn't been counted yet
+    if (tracker && !tracker.counted) {
+      console.log(`⚠️  Combo timeout (${timeoutDuration}ms) for gift ${giftName} - counting ${currentRepeatCount} gifts`);
+      diagnostics.totalComboTimeouts++;
+
+      // Mark as counted BEFORE processing to prevent race conditions
+      tracker.counted = true;
+      processGiftCount(data, currentRepeatCount);
+      giftComboTracker.delete(key);
+    }
   }, timeoutDuration);
 
   giftComboTracker.set(key, {
     data,
     timeout,
-    lastUpdate: Date.now()
+    lastUpdate: Date.now(),
+    counted: false  // Flag to track if gifts have been counted
   });
 }
 
@@ -598,26 +612,49 @@ async function connectTikTok() {
       const userId = data.userId || data.uniqueId || 'unknown';
       const key = `${userId}_${data.giftId}`;
 
-      /* Enhanced combo tracking logic */
+      /* Single-path gift counting logic - prevents double counting */
       if (data.giftType === 1) {
         // Streak-capable gifts (roses, etc.)
         if (data.repeatEnd) {
-          // Combo finished - clear timeout and count gifts
+          // Combo finished - this is the ONLY place we count combo gifts
           console.log(`✅ Combo ended: ${data.giftName} x${data.repeatCount}`);
 
+          // Check if we have a pending combo tracker
           if (giftComboTracker.has(key)) {
-            clearTimeout(giftComboTracker.get(key).timeout);
-            giftComboTracker.delete(key);
-          }
+            const tracker = giftComboTracker.get(key);
 
-          processGiftCount(data, data.repeatCount);
+            // Only count if not already counted (prevents race condition)
+            if (!tracker.counted) {
+              // Mark as counted FIRST to prevent timeout from also counting
+              tracker.counted = true;
+
+              // Clear the timeout
+              clearTimeout(tracker.timeout);
+
+              // Count the gifts
+              processGiftCount(data, data.repeatCount);
+
+              // Clean up tracker
+              giftComboTracker.delete(key);
+            } else {
+              // Already counted by timeout - just clean up
+              console.log(`⚠️  Combo already counted by timeout for ${data.giftName}`);
+              clearTimeout(tracker.timeout);
+              giftComboTracker.delete(key);
+            }
+          } else {
+            // No tracker found - might be first event with repeatEnd or very fast combo
+            // Count it directly
+            console.log(`💫 Direct combo completion (no tracker): ${data.giftName} x${data.repeatCount}`);
+            processGiftCount(data, data.repeatCount);
+          }
         } else {
           // Combo in progress - track it with timeout fallback
           console.log(`🔄 Combo in progress: ${data.giftName} x${data.repeatCount}`);
           trackGiftCombo(userId, data.giftId, data);
         }
       } else {
-        // Non-streak gifts - count immediately
+        // Non-streak gifts (giftType !== 1) - count immediately
         const delta = data.repeatCount || 1;
         console.log(`💎 Non-combo gift: ${data.giftName} x${delta}`);
         processGiftCount(data, delta);
