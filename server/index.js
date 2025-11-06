@@ -170,8 +170,14 @@ function debouncedBroadcast() {
 }
 
 function initCounters() {
+  // Preserve existing counter values when re-initializing
+  const oldCounters = { ...counters };
+
   counters = {};
-  for (const g in groups) counters[g] = { count: 0, diamonds: 0 };
+  for (const g in groups) {
+    // Use existing counter values if they exist, otherwise start at zero
+    counters[g] = oldCounters[g] || { count: 0, diamonds: 0 };
+  }
 }
 initCounters();
 
