@@ -169,13 +169,13 @@ function debouncedBroadcast() {
   }, BROADCAST_DEBOUNCE_MS);
 }
 
-function initCounters() {
-  // Preserve existing counter values when re-initializing
-  const oldCounters = { ...counters };
+function initCounters(preserveValues = true) {
+  // Optionally preserve existing counter values when re-initializing
+  const oldCounters = preserveValues ? { ...counters } : {};
 
   counters = {};
   for (const g in groups) {
-    // Use existing counter values if they exist, otherwise start at zero
+    // Use existing counter values if they exist (and preserveValues is true), otherwise start at zero
     counters[g] = oldCounters[g] || { count: 0, diamonds: 0 };
   }
 }
@@ -932,7 +932,7 @@ app.post('/api/target', async (req, res) => {
 });
 
 app.post('/api/reset', (_, res) => {
-  initCounters();
+  initCounters(false);  // Pass false to reset all counters to zero
   uniques = new Set();
   viewers = 0;
   totalGifts = totalDiamonds = 0;
