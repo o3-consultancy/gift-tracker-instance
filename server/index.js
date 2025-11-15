@@ -19,20 +19,48 @@ const BACKEND_API_URL = process.env.BACKEND_API_URL;
 const API_KEY = process.env.API_KEY;
 const ACCOUNT_ID = process.env.ACCOUNT_ID;
 const USERNAME = process.env.TIKTOK_USERNAME;
-const EULER_API_KEY = process.env.EULER_API_KEY;
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true' || false;
 
-// Configure Euler Stream API if key is provided
-if (EULER_API_KEY) {
-  SignConfig.apiKey = EULER_API_KEY;
+/* ── Euler Stream API Key Rotation Pool ───────────────────────────── */
+const EULER_API_KEYS = [
+  'euler_NzEyNDZkNzhmNDliNTc3M2FkMmNkYjM0ZDljMmVlMjFhMDNjNDcwM2MwMzk3NmUwYzE4YTdl',
+  'euler_ZGY5Y2Q3YWVkMDMxYWZjYmQ3OTkxNWFhYjFiYTU2ZTU0YzY4MDZjY2JhZWEyZjcxN2NjN2M2',
+  'euler_MDQzYjZjM2FlMjM4M2RiMTFhZTFkOGMzYWMxZGM2NTY1YTE4MDlhNDEwOWIzMzhlNjNjOTM1',
+  'euler_MGRiMjExNzBkMzEzNmNlNThiNjBmNmM2MDk4ZDk0NDExNTZhZGNiYzI1YzAxNzFjYTNkMGRj',
+  'euler_YTMyOTg1YjY4NzRjOTgxMzRlYWFmZGM3MDU3ZTNiOGJmYmVmYWI0ZmNmNTBjYzZhOTkxMDE4'
+];
+
+// Select API key based on ACCOUNT_ID for consistent rotation per instance
+function selectEulerApiKey() {
+  if (!ACCOUNT_ID) return EULER_API_KEYS[0]; // Fallback to first key
+
+  // Create a simple hash from ACCOUNT_ID to deterministically select a key
+  let hash = 0;
+  for (let i = 0; i < ACCOUNT_ID.length; i++) {
+    hash = ((hash << 5) - hash) + ACCOUNT_ID.charCodeAt(i);
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+
+  // Use absolute value and modulo to get index
+  const index = Math.abs(hash) % EULER_API_KEYS.length;
+  return EULER_API_KEYS[index];
+}
+
+const SELECTED_EULER_KEY = selectEulerApiKey();
+
+// Configure Euler Stream API with rotated key
+if (SELECTED_EULER_KEY) {
+  SignConfig.apiKey = SELECTED_EULER_KEY;
   SignConfig.signServerUrl = 'https://tiktok.eulerstream.com';
+
+  const keyIndex = EULER_API_KEYS.indexOf(SELECTED_EULER_KEY) + 1;
   console.log('✅ Euler Stream API configured for rate limit mitigation');
   console.log(`   Sign Server: ${SignConfig.signServerUrl}`);
-  console.log(`   API Key: ${EULER_API_KEY.substring(0, 20)}...${EULER_API_KEY.substring(EULER_API_KEY.length - 10)} (${EULER_API_KEY.length} chars)`);
+  console.log(`   API Key Pool: Using key ${keyIndex}/${EULER_API_KEYS.length}`);
+  console.log(`   API Key: ${SELECTED_EULER_KEY.substring(0, 20)}...${SELECTED_EULER_KEY.substring(SELECTED_EULER_KEY.length - 10)} (${SELECTED_EULER_KEY.length} chars)`);
 } else {
-  console.log('⚠️  No Euler Stream API key - using free tier (rate limits may apply)');
+  console.log('⚠️  No Euler Stream API keys configured - using free tier (rate limits may apply)');
   console.log('   Using default sign server (rate limits may apply)');
-  console.log('   EULER_API_KEY env var is empty or undefined');
 }
 
 // Validate required environment variables
