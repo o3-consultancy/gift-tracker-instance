@@ -28,9 +28,11 @@ if (EULER_API_KEY) {
   SignConfig.signServerUrl = 'https://tiktok.eulerstream.com';
   console.log('✅ Euler Stream API configured for rate limit mitigation');
   console.log(`   Sign Server: ${SignConfig.signServerUrl}`);
+  console.log(`   API Key: ${EULER_API_KEY.substring(0, 20)}...${EULER_API_KEY.substring(EULER_API_KEY.length - 10)} (${EULER_API_KEY.length} chars)`);
 } else {
   console.log('⚠️  No Euler Stream API key - using free tier (rate limits may apply)');
   console.log('   Using default sign server (rate limits may apply)');
+  console.log('   EULER_API_KEY env var is empty or undefined');
 }
 
 // Validate required environment variables
@@ -703,6 +705,11 @@ async function connectTikTok() {
       trackEvent('error');
       const errorMsg = err.message || err.toString();
       console.error('❌ TikTok connection error:', errorMsg);
+
+      // Log additional error details for debugging
+      if (err.statusCode) console.error(`   Status Code: ${err.statusCode}`);
+      if (err.info) console.error(`   Info:`, err.info);
+
       logError('CONNECTION', 'Connection error - Manual reconnection required', errorMsg);
       diagnostics.totalErrors++;
 
@@ -792,6 +799,12 @@ async function connectTikTok() {
   } catch (err) {
     const errorMsg = err.message || err.toString();
     console.error('❌ Connect failed:', errorMsg);
+
+    // Log additional error details for debugging sign server issues
+    if (err.statusCode) console.error(`   Status Code: ${err.statusCode}`);
+    if (err.info) console.error(`   Error Info:`, JSON.stringify(err.info, null, 2));
+    if (err.stack) console.error(`   Stack:`, err.stack.split('\n').slice(0, 3).join('\n'));
+
     logError('CONNECTION', 'Initial connection failed - Manual retry required', errorMsg);
     liveStatus = 'OFFLINE';
     console.log('ℹ️  Connection failed - Please click Connect to try again');
