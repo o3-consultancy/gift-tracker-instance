@@ -21,7 +21,8 @@ ACCOUNT_ID=${ACCOUNT_ID}
 TIKTOK_USERNAME=${TIKTOK_USERNAME}
 
 # ─── Euler Stream API (Rate Limit Mitigation) ───────────────
-EULER_API_KEY=${EULER_API_KEY:-euler_NzEyNDZkNzhmNDliNTc3M2FkMmNkYjM0ZDljMmVlMjFhMDNjNDcwM2MwMzk3NmUwYzE4YTdl}
+# Note: API keys are now hardcoded in rotation pool within server/index.js
+# Each instance automatically selects a key based on ACCOUNT_ID for load distribution
 
 # ─── Server Configuration ───────────────────────────────────
 PORT=${PORT:-3000}
