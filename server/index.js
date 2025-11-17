@@ -573,7 +573,11 @@ function processGiftCount(data, delta) {
   if (delta <= 0) return;
 
   const startTime = Date.now();
-  console.log(`🎁 Processing ${delta}x ${data.giftName} (${delta * data.diamondCount} diamonds)`);
+
+  // Reduce logging frequency to prevent CPU spikes (only log every 5th gift in production)
+  if (DEBUG_MODE || diagnostics.totalGiftsProcessed % 5 === 0) {
+    console.log(`🎁 Processing ${delta}x ${data.giftName} (${delta * data.diamondCount} diamonds)`);
+  }
 
   // Track diagnostics
   diagnostics.totalGiftsProcessed += delta;
@@ -615,7 +619,21 @@ function processGiftCount(data, delta) {
   debugLog(`Gift processed in ${processingTime}ms`);
 }
 
+/* ── Connection rate limiting to prevent CPU spikes ─────────────────── */
+let lastConnectionAttempt = 0;
+const MIN_CONNECTION_INTERVAL = 5000; // Minimum 5 seconds between connection attempts
+
 async function connectTikTok() {
+  // Rate limit connection attempts to prevent CPU spikes
+  const now = Date.now();
+  const timeSinceLastAttempt = now - lastConnectionAttempt;
+
+  if (timeSinceLastAttempt < MIN_CONNECTION_INTERVAL) {
+    const waitTime = MIN_CONNECTION_INTERVAL - timeSinceLastAttempt;
+    console.log(`⏱️  Rate limit: Please wait ${Math.ceil(waitTime / 1000)}s before reconnecting`);
+    return;
+  }
+
   // Prevent connecting if already connecting or connected
   if (liveStatus === 'CONNECTING' || liveStatus === 'ONLINE') {
     console.log('⚠️  Already connecting or connected');
@@ -624,6 +642,7 @@ async function connectTikTok() {
 
   // Reset manual disconnect flag - user is manually connecting
   isManualDisconnect = false;
+  lastConnectionAttempt = now;
 
   liveStatus = 'CONNECTING';
   broadcast();
@@ -653,7 +672,7 @@ async function connectTikTok() {
         // Streak-capable gifts (roses, etc.)
         if (data.repeatEnd) {
           // Combo finished - this is the ONLY place we count combo gifts
-          console.log(`✅ Combo ended: ${data.giftName} x${data.repeatCount}`);
+          debugLog(`✅ Combo ended: ${data.giftName} x${data.repeatCount}`);
 
           // Check if we have a pending combo tracker
           if (giftComboTracker.has(key)) {
@@ -674,25 +693,25 @@ async function connectTikTok() {
               giftComboTracker.delete(key);
             } else {
               // Already counted by timeout - just clean up
-              console.log(`⚠️  Combo already counted by timeout for ${data.giftName}`);
+              debugLog(`⚠️  Combo already counted by timeout for ${data.giftName}`);
               clearTimeout(tracker.timeout);
               giftComboTracker.delete(key);
             }
           } else {
             // No tracker found - might be first event with repeatEnd or very fast combo
             // Count it directly
-            console.log(`💫 Direct combo completion (no tracker): ${data.giftName} x${data.repeatCount}`);
+            debugLog(`💫 Direct combo completion (no tracker): ${data.giftName} x${data.repeatCount}`);
             processGiftCount(data, data.repeatCount);
           }
         } else {
           // Combo in progress - track it with timeout fallback
-          console.log(`🔄 Combo in progress: ${data.giftName} x${data.repeatCount}`);
+          debugLog(`🔄 Combo in progress: ${data.giftName} x${data.repeatCount}`);
           trackGiftCombo(userId, data.giftId, data);
         }
       } else {
         // Non-streak gifts (giftType !== 1) - count immediately
         const delta = data.repeatCount || 1;
-        console.log(`💎 Non-combo gift: ${data.giftName} x${delta}`);
+        debugLog(`💎 Non-combo gift: ${data.giftName} x${delta}`);
         processGiftCount(data, delta);
       }
     });
@@ -922,9 +941,39 @@ app.post('/api/validate', (req, res) => {
   });
 });
 
-// Protected routes - require valid session
-app.post('/api/connect', async (_, res) => { await connectTikTok(); res.json({ ok: true }); });
-app.post('/api/disconnect', async (_, res) => { await disconnectTikTok(); res.json({ ok: true }); });
+/* ── API endpoint rate limiting ─────────────────────────────────── */
+const apiRateLimits = new Map();
+const API_RATE_LIMIT_MS = 1000; // 1 second between requests per endpoint
+
+function checkApiRateLimit(endpoint, res) {
+  const now = Date.now();
+  const lastCall = apiRateLimits.get(endpoint) || 0;
+
+  if (now - lastCall < API_RATE_LIMIT_MS) {
+    res.status(429).json({
+      ok: false,
+      error: 'Too many requests. Please wait a moment.',
+      retryAfter: Math.ceil((API_RATE_LIMIT_MS - (now - lastCall)) / 1000)
+    });
+    return false;
+  }
+
+  apiRateLimits.set(endpoint, now);
+  return true;
+}
+
+// Protected routes - require valid session with rate limiting
+app.post('/api/connect', async (_, res) => {
+  if (!checkApiRateLimit('connect', res)) return;
+  await connectTikTok();
+  res.json({ ok: true });
+});
+
+app.post('/api/disconnect', async (_, res) => {
+  if (!checkApiRateLimit('disconnect', res)) return;
+  await disconnectTikTok();
+  res.json({ ok: true });
+});
 
 app.get('/api/state', (_, res) => res.json(buildPayload()));
 
